@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:replace="~{layout :: layout(~{::section})}">
+<head>
+    <title>Gọi đồ & Dịch vụ</title>
+</head>
+<body>
+<section>
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="page-title">Quản lý Gọi đồ & Dịch vụ</h2>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-shopping-cart text-primary me-2 fs-4"></i>
+                <span class="h5 mb-0 fw-bold">Tổng: <span id="totalAmount" class="text-primary">0 VNĐ</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-futbol me-2"></i>Chọn sân đang đá</h5>
+                </div>
+                <div class="card-body p-2" id="pitchesList" style="max-height: 250px; overflow-y: auto;">
+                    <p class="text-center text-muted mt-3">Đang tải danh sách sân...</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Dịch vụ đã gọi</h5>
+                </div>
+                <div class="card-body p-2" id="currentOrder" style="max-height: 350px; overflow-y: auto;">
+                    <p class="text-center text-muted mt-3">Vui lòng chọn sân bên trên</p>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong class="text-uppercase">Tổng tiền dịch vụ:</strong>
+                        <strong id="serviceFee" class="text-success fs-5">0 VNĐ</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-store me-2"></i>Danh sách dịch vụ</h5>
+                        <select id="menuTypeFilter" class="form-select w-auto fw-bold" onchange="loadMenu(this.value)">
+                            <option value="ALL">Tất cả</option>
+                            <option value="Đồ uống">Đồ uống</option>
+                            <option value="Thuê đồ">Thuê đồ</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body bg-light rounded-bottom">
+                    <div id="menuNotice" class="alert alert-info text-center shadow-sm">
+                        <i class="fas fa-info-circle me-1"></i> Vui lòng chọn sân để bắt đầu gọi đồ!
+                    </div>
+                    <div id="menuItems" class="row g-3" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .pitch-select-btn { width: 100%; text-align: left; padding: 12px; margin-bottom: 8px; border: 2px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .pitch-select-btn:hover { border-color: #2563eb; background: #eff6ff; }
+        .pitch-select-btn.active { border-color: #2563eb; background: #dbeafe; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+        .pitch-name { font-weight: bold; font-size: 16px; margin-bottom: 4px; color: #1f2937; }
+        .pitch-status { font-size: 13px; color: #dc2626; font-weight: 500;}
+
+        .order-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; }
+        .order-item-name { font-weight: 600; margin-bottom: 2px; font-size: 14px;}
+        .order-item-price { font-size: 12px; color: #6b7280; }
+        .order-item-controls { display: flex; align-items: center; gap: 8px; }
+        .order-item-controls button { width: 28px; height: 28px; padding: 0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .order-item-quantity { min-width: 25px; text-align: center; font-weight: bold; }
+
+        .menu-item-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; background: white; cursor: pointer; transition: all 0.2s; height: 100%; display: flex; flex-direction: column; justify-content: space-between;}
+        .menu-item-card:hover { border-color: #10b981; transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .menu-item-card.out-of-stock { opacity: 0.6; cursor: not-allowed; background: #fee2e2; border-color: #fca5a5; }
+        .menu-item-name { font-weight: 600; font-size: 15px; margin-bottom: 6px; color: #374151;}
+        .menu-item-price { color: #10b981; font-weight: bold; font-size: 16px;}
+        .stock-badge { font-size: 11px; padding: 4px 8px; border-radius: 6px; display: inline-block; font-weight: bold; margin-top: 8px; width: fit-content;}
+        .stock-available { background: #dcfce7; color: #166534; }
+        .stock-low { background: #fef3c7; color: #92400e; }
+        .stock-out { background: #fee2e2; color: #991b1b; }
+    </style>
+
+    <script>
+        let selectedMaHD = null;
+        let selectedPitchId = null;
+
+        $(document).ready(function () {
+            loadOccupiedPitches();
+        });
+
+        // Tải danh sách các sân đang có người đá
+        function loadOccupiedPitches() {
+            // Thay vì gọi GetAll rồi filter, ta gọi API lấy trực tiếp sân đang chơi
+            $.get('/order/api/active-pitches', function (data) {
+                const container = $('#pitchesList');
+                container.empty();
+
+                if (data.length === 0) {
+                    container.html('<p class="text-center text-muted mt-3">Hiện không có sân nào đang đá</p>');
+                    return;
+                }
+
+                data.forEach(pitch => {
+                    const btn = `
+                        <div class="pitch-select-btn" onclick="selectPitch('${pitch.maSan}', '${pitch.maHD}')">
+                            <div class="pitch-name">${pitch.tenSan}</div>
+                            <div class="pitch-status"><i class="fas fa-circle text-danger me-1" style="font-size:8px;"></i>Đang đá</div>
+                        </div>
+                    `;
+                    container.append(btn);
+                });
+            });
+        }
+
+        // Khi click vào 1 sân
+        function selectPitch(maSan, maHD) {
+            selectedPitchId = maSan;
+            selectedMaHD = maHD;
+
+            // Đổi màu nút được chọn
+            $('.pitch-select-btn').removeClass('active');
+            $(event.currentTarget).addClass('active');
+
+            // Hiển thị menu
+            $('#menuNotice').hide();
+            $('#menuItems').show();
+
+            // Load dữ liệu
+            loadSessionOrders();
+            loadMenu($('#menuTypeFilter').val());
+        }
+
+        // Tải các món sân này đã gọi
+        function loadSessionOrders() {
+            $.get('/order/api/session-orders', { maHD: selectedMaHD }, function (res) {
+                const container = $('#currentOrder');
+                container.empty();
+
+                if (res.orders.length === 0) {
+                    container.html('<p class="text-center text-muted mt-3">Chưa sử dụng dịch vụ nào</p>');
+                } else {
+                    res.orders.forEach(order => {
+                        const item = `
+                            <div class="order-item shadow-sm">
+                                <div class="order-item-info">
+                                    <div class="order-item-name">${order.tenMon}</div>
+                                    <div class="order-item-price">${formatCurrency(order.donGia)}</div>
+                                </div>
+                                <div class="order-item-controls">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="updateQty('${order.maMon}', ${order.soLuong - 1})"><i class="fas fa-minus"></i></button>
+                                    <span class="order-item-quantity">${order.soLuong}</span>
+                                    <button class="btn btn-sm btn-outline-success" onclick="updateQty('${order.maMon}', ${order.soLuong + 1})"><i class="fas fa-plus"></i></button>
+                                    <button class="btn btn-sm btn-danger ms-1" onclick="removeItem('${order.maMon}')"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <div class="text-end ms-2" style="min-width: 90px;">
+                                    <strong class="text-primary">${formatCurrency(order.thanhTien)}</strong>
+                                </div>
+                            </div>
+                        `;
+                        container.append(item);
+                    });
+                }
+
+                // Cập nhật tổng tiền
+                $('#serviceFee').text(formatCurrency(res.totalFee));
+                $('#totalAmount').text(formatCurrency(res.totalFee));
+            });
+        }
+
+        // Tải danh sách mặt hàng trong kho
+        function loadMenu(type) {
+            if (!selectedMaHD) return;
+
+            $.get('/order/api/menu', { type: type }, function (data) {
+                const container = $('#menuItems');
+                container.empty();
+
+                if (data.length === 0) {
+                    container.html('<div class="col-12 text-center text-muted p-4">Không tìm thấy mặt hàng nào</div>');
+                    return;
+                }
+
+                data.forEach(item => {
+                    const isOut = item.soLuongTon <= 0;
+                    const stockClass = item.soLuongTon > 10 ? 'stock-available' : (isOut ? 'stock-out' : 'stock-low');
+                    const stockText = isOut ? 'Hết hàng' : `Kho: ${item.soLuongTon}`;
+                    const outClass = isOut ? 'out-of-stock' : '';
+
+                    const card = `
+                        <div class="col-md-6 col-xl-4">
+                            <div class="menu-item-card ${outClass}" onclick="${isOut ? '' : `addItem('${item.maMon}')`}">
+                                <div>
+                                    <div class="menu-item-name">${item.tenMon}</div>
+                                    <div class="menu-item-price">${formatCurrency(item.donGia)}</div>
+                                </div>
+                                <div class="stock-badge ${stockClass}">${stockText}</div>
+                            </div>
+                        </div>
+                    `;
+                    container.append(card);
+                });
+            });
+        }
+
+        // APIs Thao tác
+        function addItem(maMon) {
+            $.post('/order/api/add', { maHD: selectedMaHD, maMon: maMon, qty: 1 }, function() {
+                loadSessionOrders();
+                loadMenu($('#menuTypeFilter').val());
+            });
+        }
+
+        function updateQty(maMon, newQty) {
+            if (newQty <= 0) {
+                removeItem(maMon);
+                return;
+            }
+            $.post('/order/api/update', { maHD: selectedMaHD, maMon: maMon, qty: newQty }, function() {
+                loadSessionOrders();
+                loadMenu($('#menuTypeFilter').val());
+            });
+        }
+
+        function removeItem(maMon) {
+            if(confirm('Chắc chắn muốn xóa mục này khỏi hóa đơn?')) {
+                $.post('/order/api/remove', { maHD: selectedMaHD, maMon: maMon }, function() {
+                    loadSessionOrders();
+                    loadMenu($('#menuTypeFilter').val());
+                });
+            }
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+        }
+    </script>
+</section>
+</body>
+</html>

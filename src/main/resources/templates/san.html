@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::section})}">
+<head>
+    <title>Quản lý Sân Bóng</title>
+</head>
+<body>
+<section>
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="page-title">Quản lý Sân Bóng</h2>
+            <div sec:authorize="hasRole('ADMIN')">
+                <button class="btn btn-primary" onclick="showAddTableModal()">
+                    <i class="fas fa-plus"></i> Thêm sân
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tablesGrid" class="row">
+    </div>
+
+    <div class="modal fade" id="tableModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Thêm sân mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="tableForm">
+                        <input type="hidden" id="maSan" name="maSan"/>
+                        <div class="mb-3">
+                            <label class="form-label">Tên sân <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="tenSan" name="tenSan" required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Giá giờ <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="gia" name="gia" required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Trạng thái</label>
+                            <select id="trangThai" name="trangThai" class="form-select">
+                                <option value="Trống">Trống</option>
+                                <option value="Đang Chơi">Đang Chơi</option>
+                                <option value="Đặt Trước">Đặt Trước</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTable()">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .table-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px; transition: all 0.3s; background: #fff; }
+        .table-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .table-card.available { border-color: #10b981; background: #ecfdf5; }
+        .table-card.occupied { border-color: #ef4444; background: #fef2f2; }
+        .table-card.reserved { border-color: #f59e0b; background: #fffbeb; }
+        .table-name { font-size: 22px; font-weight: bold; color: #1f2937; margin-bottom: 5px; }
+        .table-price { color: #6b7280; font-size: 14px; margin-bottom: 15px; }
+        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+        .status-badge.available { background: #d1fae5; color: #065f46; }
+        .status-badge.occupied { background: #fee2e2; color: #991b1b; }
+        .status-badge.reserved { background: #fef3c7; color: #92400e; }
+        .session-info { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #ccc; }
+    </style>
+
+    <script th:inline="javascript">
+        let tables = [];
+        let editingTable = null;
+        const isAdmin = /*[[${#authorization.expression('hasRole(''ADMIN'')')}]]*/ false;
+
+        $(document).ready(function () {
+            loadTables();
+        });
+
+        function loadTables() {
+            $.get('/san/api/get-all', function (data) {
+                tables = data;
+                renderTables();
+            });
+        }
+
+        function renderTables() {
+            const grid = $('#tablesGrid');
+            grid.empty();
+
+            tables.forEach(table => {
+                const isOccupied = (table.trangThai === 'Đang Chơi');
+                const isReserved = (table.trangThai === 'Đặt Trước');
+                const cardClass = isOccupied ? 'occupied' : (isReserved ? 'reserved' : 'available');
+                const statusText = isOccupied ? 'Đang có khách' : (isReserved ? 'Đã đặt chỗ' : 'Sân Trống');
+
+                let sessionHtml = '';
+                if (isOccupied) {
+                    sessionHtml = `<div class="session-info text-danger">Sân đang sử dụng</div>`;
+                } else if (isReserved) {
+                    sessionHtml = `<div class="session-info text-warning">Khách đã đặt trước</div>`;
+                } else {
+                    sessionHtml = `<div class="session-info text-success">Sân đang trống</div>`;
+                }
+
+                let buttonsHtml = '';
+                // Nếu là Admin thì hiện nút Sửa/Xóa
+                if (isAdmin) {
+                    buttonsHtml += `
+                        <div class="btn-group w-100 mb-2">
+                            <button class="btn btn-sm btn-outline-warning" onclick='editTable(${JSON.stringify(table)})'>Sửa</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTable(${table.maSan})">Xóa</button>
+                        </div>
+                    `;
+                }
+
+                // Logic cho nút Bắt đầu / Tính tiền / Đặt sân dựa trên quyền Admin/Khách
+                if (table.trangThai === 'Trống') {
+                    if (isAdmin) {
+                        buttonsHtml += `<button class="btn btn-success w-100" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Bắt đầu</button>`;
+                    } else {
+                        buttonsHtml += `<button class="btn btn-info text-white w-100" onclick="bookSession(${table.maSan})"><i class="fas fa-calendar-check"></i> Đặt Sân</button>`;
+                    }
+                } else if (isReserved) {
+                    if (isAdmin) {
+                        buttonsHtml += `<button class="btn btn-warning w-100" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Khách tới (Bắt đầu)</button>`;
+                    } else {
+                        buttonsHtml += `<button class="btn btn-secondary w-100" disabled>Sân đã được đặt</button>`;
+                    }
+                } else if (isOccupied) {
+                    if (isAdmin) {
+                        buttonsHtml += `<button class="btn btn-primary w-100" onclick="endSession(${table.maSan})">Tính Tiền</button>`;
+                    } else {
+                        buttonsHtml += `<button class="btn btn-danger w-100" disabled>Đang có khách đá</button>`;
+                    }
+                }
+
+                const cardHtml = `
+                    <div class="col-md-6 col-lg-3">
+                        <div class="table-card ${cardClass}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="table-name">${table.tenSan}</div>
+                                <span class="status-badge ${cardClass}">${statusText}</span>
+                            </div>
+                            <div class="table-price">${new Intl.NumberFormat('vi-VN').format(table.gia)} đ/giờ</div>
+                            ${sessionHtml}
+                            ${buttonsHtml}
+                        </div>
+                    </div>
+                `;
+                grid.append(cardHtml);
+            });
+        }
+
+        // --- CÁC HÀM XỬ LÝ SÂN (Đã đưa ra ngoài để hoạt động được) ---
+
+        function startSession(maSan) {
+            $.post('/san/api/start', { maSan: maSan }, function(res) {
+                if(res.success) {
+                    loadTables();
+                } else {
+                    alert(res.message || "Không thể bắt đầu!");
+                }
+            });
+        }
+
+        function endSession(maSan) {
+            if(confirm('Xác nhận thanh toán và đóng sân này?')) {
+                $.post('/san/api/end', { maSan: maSan }, function(res) {
+                    if(res.success) {
+                        alert(res.message);
+                        loadTables();
+                    } else {
+                        alert("Thanh toán thất bại!");
+                    }
+                });
+            }
+        }
+
+        function bookSession(maSan) {
+            if(confirm('Xác nhận đặt trước sân này?')) {
+                $.post('/san/api/book', { maSan: maSan }, function(res) {
+                    alert(res.message);
+                    if(res.success) loadTables();
+                });
+            }
+        }
+
+        // --- CÁC HÀM CRUD ---
+        function showAddTableModal() {
+            editingTable = null;
+            $('#modalTitle').text('Thêm sân mới');
+            $('#tableForm')[0].reset();
+            $('#maSan').val('');
+            $('#tableModal').modal('show');
+        }
+
+        function editTable(table) {
+            editingTable = table;
+            $('#modalTitle').text('Chỉnh sửa sân');
+            $('#maSan').val(table.maSan);
+            $('#tenSan').val(table.tenSan);
+            $('#gia').val(table.gia);
+            $('#trangThai').val(table.trangThai);
+            $('#tableModal').modal('show');
+        }
+
+        function saveTable() {
+            const data = $('#tableForm').serialize();
+            const url = editingTable ? '/san/api/edit' : '/san/api/create';
+
+            $.post(url, data, function(res) {
+                if(res.success) {
+                    $('#tableModal').modal('hide');
+                    loadTables();
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+
+        function deleteTable(id) {
+            if(confirm('Bạn có chắc chắn muốn xóa sân này?')) {
+                $.post('/san/api/delete', { maSan: id }, function(res) {
+                    if(res.success) {
+                        loadTables();
+                    } else {
+                        alert(res.message);
+                    }
+                });
+            }
+        }
+    </script>
+</section>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: layout(~{::section})}">
+<head>
+    <title>Quản lý kho hàng</title>
+</head>
+<body>
+<section>
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="page-title"><i class="fas fa-boxes me-2"></i>Quản lý kho hàng</h2>
+            <div sec:authorize="hasRole('ADMIN')">
+                <button class="btn btn-primary" onclick="showAddItemModal()">
+                    <i class="fas fa-plus"></i> Thêm hàng hóa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control" id="searchInput"
+                               placeholder="Tìm kiếm theo tên hoặc mã hàng...">
+                    </div>
+                </div>
+                <div class="col-md-4 mt-3 mt-md-0">
+                    <button class="btn btn-outline-primary w-100" onclick="loadItems()">
+                        <i class="fas fa-sync-alt"></i> Làm mới
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="alertSection" class="mb-3"></div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="itemsTable">
+                    <thead class="bg-light">
+                    <tr>
+                        <th class="ps-3">Mã hàng</th>
+                        <th>Tên hàng</th>
+                        <th>Loại hàng</th>
+                        <th>Đơn giá</th>
+                        <th>Tồn kho</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end pe-3">Thao tác</th>
+                    </tr>
+                    </thead>
+                    <tbody id="itemsTableBody">
+                    <tr>
+                        <td colspan="6" class="text-center py-4">Đang tải dữ liệu...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="itemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalTitle">Thêm hàng hóa mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="itemForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mã hàng <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="maMon" name="maMon" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tên hàng <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="tenMon" name="tenMon" required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Đơn giá (VNĐ) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="donGia" name="donGia" required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Loại mặt hàng</label>
+                            <select class="form-select" id="loaiHang" name="loaiHang">
+                                <option value="Đồ uống">Đồ uống</option>
+                                <option value="Thuê đồ">Thuê đồ</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số lượng tồn <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="soLuongTon" name="soLuongTon" required/>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" onclick="saveItem()">Lưu thông tin</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="stockModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="fas fa-warehouse me-2"></i>Cập nhật tồn kho</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="stockMaMon"/>
+                    <div class="alert alert-light border shadow-sm text-center">
+                        Tồn kho hiện tại: <strong class="fs-4 text-primary" id="currentStock">0</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Loại giao dịch</label>
+                        <select class="form-select" id="stockType">
+                            <option value="import">Nhập thêm hàng</option>
+                            <option value="export">Xuất bớt hàng (Hư hỏng/Hủy)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Số lượng</label>
+                        <input type="number" class="form-control" id="stockQuantity" min="1" required/>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-info text-white" onclick="updateStock()">Cập nhật kho</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-instock { background: #dcfce7; color: #166534; }
+        .status-lowstock { background: #fef3c7; color: #92400e; }
+        .status-outofstock { background: #fee2e2; color: #991b1b; }
+    </style>
+
+    <script th:inline="javascript">
+        let items = [];
+        let editingItem = null;
+        const isAdmin = /*[[${#authorization.expression('hasRole(''ADMIN'')')}]]*/ false;
+
+        $(document).ready(function () {
+            loadItems();
+
+            $('#searchInput').on('keyup', function () {
+                const search = $(this).val().toLowerCase();
+                filterItems(search);
+            });
+        });
+
+        function loadItems() {
+            $.get('/kho/api/get-all', function (data) {
+                items = data;
+                renderItems(items);
+                showAlerts();
+            });
+        }
+
+        function showAlerts() {
+            const lowStock = items.filter(i => i.Status === 'Sắp hết');
+            const outOfStock = items.filter(i => i.Status === 'Hết hàng');
+
+            let html = '';
+            if (outOfStock.length > 0) {
+                html += `<div class="alert alert-danger shadow-sm"><i class="fas fa-exclamation-circle me-2"></i> Có <strong>${outOfStock.length}</strong> mặt hàng đã hết kho. Vui lòng nhập thêm!</div>`;
+            }
+            if (lowStock.length > 0) {
+                html += `<div class="alert alert-warning shadow-sm"><i class="fas fa-exclamation-triangle me-2"></i> Có <strong>${lowStock.length}</strong> mặt hàng sắp hết. Cần chú ý nhập hàng.</div>`;
+            }
+            $('#alertSection').html(html);
+        }
+
+        function renderItems(itemsToRender) {
+            const tbody = $('#itemsTableBody');
+            tbody.empty();
+
+            if(itemsToRender.length === 0) {
+                 tbody.html('<tr><td colspan="6" class="text-center py-4 text-muted">Không tìm thấy mặt hàng nào.</td></tr>');
+                 return;
+            }
+
+            itemsToRender.forEach(item => {
+                const statusClass = item.Status === 'Còn hàng' ? 'status-instock' : (item.Status === 'Sắp hết' ? 'status-lowstock' : 'status-outofstock');
+
+                let actionsHtml = '';
+                if (isAdmin) {
+                    actionsHtml = `
+                        <button class="btn btn-sm btn-outline-info me-1" onclick='showStockModal(${JSON.stringify(item)})' title="Cập nhật kho">
+                            <i class="fas fa-warehouse"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning me-1" onclick='editItem(${JSON.stringify(item)})' title="Chỉnh sửa">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('${item.maMon}')" title="Xóa">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                } else {
+                    actionsHtml = '<span class="text-muted"><i class="fas fa-lock me-1"></i>Chỉ xem</span>';
+                }
+
+                const row = `
+                    <tr>
+                        <td class="ps-3 fw-bold text-secondary">${item.maMon}</td>
+                        <td class="fw-bold">${item.tenMon}</td>
+                        <td><span class="badge bg-secondary">${item.loaiHang || 'Khác'}</span></td> <td class="text-primary fw-bold">${formatCurrency(item.donGia)}</td>
+                        <td class="fs-5">${item.soLuongTon}</td>
+                        <td><span class="status-badge ${statusClass}">${item.Status}</span></td>
+                        <td class="text-end pe-3">${actionsHtml}</td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+        }
+
+        function filterItems(search) {
+            const filtered = items.filter(item =>
+                item.tenMon.toLowerCase().includes(search) ||
+                item.maMon.toLowerCase().includes(search)
+            );
+            renderItems(filtered);
+        }
+
+        function showAddItemModal() {
+            editingItem = null;
+            $('#modalTitle').text('Thêm hàng hóa mới');
+            $('#itemForm')[0].reset();
+
+            // Mở khóa ô nhập Mã hàng khi tạo mới
+            $('#maMon').prop('readonly', false);
+            $('#loaiHang').val('Đồ uống');
+            $('#itemModal').modal('show');
+
+        }
+
+        function editItem(item) {
+            editingItem = item;
+            $('#modalTitle').text('Chỉnh sửa thông tin');
+
+            // Đổ dữ liệu
+            $('#maMon').val(item.maMon);
+            $('#tenMon').val(item.tenMon);
+            $('#donGia').val(item.donGia);
+            $('#soLuongTon').val(item.soLuongTon);
+
+            // Khóa cứng ô Mã hàng, không cho sửa khi Update
+            $('#maMon').prop('readonly', true);
+
+            $('#itemModal').modal('show');
+            $('#loaiHang').val(item.loaiHang || 'Đồ uống');
+        }
+
+        function saveItem() {
+            const data = $('#itemForm').serialize();
+            const url = editingItem ? '/kho/api/edit' : '/kho/api/create';
+
+            $.post(url, data, function (response) {
+                if (response.success) {
+                    $('#itemModal').modal('hide');
+                    loadItems();
+                    // Chú ý: Dữ liệu thực tế sẽ không thay đổi vì chúng ta đang dùng dữ liệu Mock cứng trong Java
+                    alert(response.message);
+                } else {
+                    alert(response.message);
+                }
+            });
+        }
+
+        function deleteItem(maMon) {
+            if (confirm('Bạn có chắc chắn muốn xóa mặt hàng này?')) {
+                $.post('/kho/api/delete', { maMon: maMon }, function (response) {
+                    if (response.success) {
+                        loadItems();
+                        alert(response.message);
+                    }
+                });
+            }
+        }
+
+        function showStockModal(item) {
+            $('#stockMaMon').val(item.maMon);
+            $('#currentStock').text(item.soLuongTon);
+            $('#stockQuantity').val('');
+            $('#stockType').val('import');
+            $('#stockModal').modal('show');
+        }
+
+        function updateStock() {
+            const data = {
+                maMon: $('#stockMaMon').val(),
+                quantity: $('#stockQuantity').val(),
+                type: $('#stockType').val()
+            };
+
+            $.post('/kho/api/update-stock', data, function (response) {
+                if (response.success) {
+                    $('#stockModal').modal('hide');
+                    loadItems();
+                    alert(response.message);
+                }
+            });
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+        }
+    </script>
+</section>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:replace="~{layout :: layout(~{::section})}">
+<head>
+    <title>Quản lý Tài Khoản</title>
+</head>
+<body>
+<section>
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="page-title"><i class="fas fa-user-shield me-2"></i>Quản lý Tài Khoản</h2>
+            <button class="btn btn-primary shadow-sm" onclick="showAddModal()">
+                <i class="fas fa-plus me-1"></i> Thêm tài khoản
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary">
+                    <tr>
+                        <th class="ps-4">Tên Đăng Nhập</th>
+                        <th>Email</th>
+                        <th>Vai Trò</th>
+                        <th class="text-end pe-4">Thao Tác</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="accountModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalTitle">Thêm Tài Khoản</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="accountForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tên Đăng Nhập <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="username" name="username" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="Không bắt buộc"/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mật Khẩu <span class="text-danger" id="passwordAsterisk">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Vai Trò</label>
+                            <select class="form-select" id="role" name="role">
+                                <option value="ADMIN">ADMIN</option>
+                                <option value="KHACH">KHACH (Khách hàng)</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="saveAccount()">Lưu tài khoản</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        let accounts = [];
+        let isEditing = false;
+
+        $(document).ready(function () {
+            loadData();
+        });
+
+        function loadData() {
+            $.get('/taikhoan/api/get-all', function (data) {
+                accounts = data;
+                renderTable();
+            });
+        }
+
+        function renderTable() {
+            const tbody = $('#tableBody');
+            tbody.empty();
+
+            if(accounts.length === 0) {
+                tbody.html('<tr><td colspan="4" class="text-center py-4 text-muted">Chưa có tài khoản nào.</td></tr>');
+                return;
+            }
+
+            accounts.forEach(acc => {
+                const roleClass = acc.role === 'ADMIN' ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info';
+                const row = `
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark">${acc.username}</td>
+                        <td>${acc.email}</td>
+                        <td><span class="badge ${roleClass} border px-3 py-2" style="font-size: 12px;">${acc.role}</span></td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-warning me-1" onclick='editAccount(${JSON.stringify(acc)})' title="Sửa">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount('${acc.username}')" title="Xóa">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+        }
+
+        function showAddModal() {
+            isEditing = false;
+            $('#modalTitle').text('Thêm Tài Khoản Mới');
+            $('#accountForm')[0].reset();
+
+            // Mở khóa username và yêu cầu password
+            $('#username').prop('readonly', false);
+            $('#password').prop('required', true);
+            $('#passwordAsterisk').show();
+            $('#password').attr('placeholder', 'Nhập mật khẩu');
+            $('#accountModal').modal('show');
+        }
+
+        function editAccount(acc) {
+            isEditing = true;
+            $('#modalTitle').text('Chỉnh Sửa Tài Khoản');
+
+            $('#username').val(acc.username);
+            $('#email').val(acc.email);
+            $('#role').val(acc.role);
+            $('#password').val('');
+
+            // Đóng khóa username và tắt required cho password
+            $('#username').prop('readonly', true);
+            $('#password').prop('required', false);
+            $('#passwordAsterisk').hide();
+            $('#password').attr('placeholder', 'Để trống nếu không đổi mật khẩu');
+
+            $('#accountModal').modal('show');
+        }
+
+        function saveAccount() {
+            const data = $('#accountForm').serialize();
+            const url = isEditing ? '/taikhoan/api/edit' : '/taikhoan/api/create';
+
+            $.post(url, data, function (res) {
+                if (res.success) {
+                    $('#accountModal').modal('hide');
+                    loadData();
+                    alert(res.message);
+                } else {
+                    alert(res.message);
+                }
+            }).fail(function(xhr) {
+                // THÊM ĐOẠN NÀY ĐỂ HIỆN LỖI NẾU SERVER CHẾT
+                alert("Lỗi hệ thống (500): Server từ chối xử lý dữ liệu. Vui lòng kiểm tra lại log của Spring Boot!");
+            });
+        }
+
+        function deleteAccount(username) {
+            if (confirm('Bạn có chắc muốn xóa tài khoản [' + username + '] không?')) {
+                $.post('/taikhoan/api/delete', { username: username }, function (res) {
+                    if (res.success) {
+                        loadData();
+                        alert(res.message);
+                    } else {
+                        alert(res.message);
+                    }
+                });
+            }
+        }
+    </script>
+</section>
+</body>
+</html>
