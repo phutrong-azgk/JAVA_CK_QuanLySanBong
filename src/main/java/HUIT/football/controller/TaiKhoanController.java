@@ -24,6 +24,9 @@ public class TaiKhoanController {
     private UserRepository userRepository;
 
     @Autowired
+    private HUIT.football.repository.KhachHangRepository khachHangRepo;
+
+    @Autowired
     private UserService userService;
 
     @Autowired
@@ -73,8 +76,19 @@ public class TaiKhoanController {
             user.setEmail(null);
         }
 
-        // Dùng hàm save của UserService để tự động mã hóa mật khẩu trước khi lưu
+        // 1. Dùng hàm save của UserService để lưu vào bảng "users"
         userService.save(user);
+
+        // 2. TỰ ĐỘNG TẠO HỒ SƠ BÊN BẢNG "khach_hang" ĐỂ LIÊN KẾT
+        // Chỉ tạo hồ sơ khách hàng nếu role là KHACH
+        if (user.getRole() == Role.KHACH) {
+            HUIT.football.model.KhachHang kh = new HUIT.football.model.KhachHang();
+            kh.setTaiKhoan(user.getUsername());
+            kh.setTenKhach(user.getUsername()); // Lấy tạm tên đăng nhập làm tên khách, họ sẽ tự đổi sau
+            kh.setEmail(user.getEmail());       // Copy email từ form đăng ký sang bảng khách hàng
+
+            khachHangRepo.save(kh);
+        }
 
         response.put("success", true);
         response.put("message", "Tạo tài khoản thành công!");

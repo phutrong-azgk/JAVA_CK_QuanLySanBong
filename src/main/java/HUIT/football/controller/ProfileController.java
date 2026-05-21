@@ -47,7 +47,7 @@ public class ProfileController {
     @ResponseBody
     public ResponseEntity<?> updateProfile(@RequestParam("tenKhach") String tenKhach,
                                            @RequestParam("soDienThoai") String soDienThoai,
-                                           @RequestParam(value = "email", required = false) String email, // THÊM DÒNG NÀY
+                                           @RequestParam(value = "email", required = false) String email,
                                            @RequestParam(value = "password", required = false) String password,
                                            Principal principal) {
         Map<String, Object> response = new HashMap<>();
@@ -58,17 +58,24 @@ public class ProfileController {
 
         String username = principal.getName();
 
-        // 1. Cập nhật bảng Khách Hàng (Tên, SĐT)
+        // 1. Cập nhật bảng Khách Hàng (Tên, SĐT, Email)
         HUIT.football.model.KhachHang kh = khachHangRepo.findByTaiKhoan(username).orElse(new HUIT.football.model.KhachHang());
         kh.setTaiKhoan(username);
         kh.setTenKhach(tenKhach);
         kh.setSoDienThoai(soDienThoai);
+
+        // Lưu Email vào bảng khach_hang
+        if (email != null && email.trim().isEmpty()) {
+            kh.setEmail(null);
+        } else {
+            kh.setEmail(email);
+        }
         khachHangRepo.save(kh);
 
         // 2. Cập nhật bảng User (Email và Mật khẩu)
         HUIT.football.model.User user = userRepository.findByUsername(username).get();
 
-        // Cập nhật Email (Xử lý nếu để trống thì gán null để tránh lỗi MySQL)
+        // Lưu Email vào bảng users
         if (email != null && email.trim().isEmpty()) {
             user.setEmail(null);
         } else {
