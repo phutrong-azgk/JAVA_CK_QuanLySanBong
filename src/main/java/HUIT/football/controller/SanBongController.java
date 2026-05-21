@@ -141,6 +141,24 @@ public class SanBongController {
                 // 3. TỔNG TIỀN HÓA ĐƠN
                 hd.setTongTien(tienSan + tienDichVu);
 
+                // ========================================================
+                // 4. LOGIC MỚI: CỘNG DỒN CHI TIÊU VÀ SỐ HÓA ĐƠN CHO KHÁCH
+                // ========================================================
+                if (hd.getKhachHang() != null) {
+                    HUIT.football.model.KhachHang kh = hd.getKhachHang();
+
+                    // Lấy số cũ (nếu null thì coi như là 0)
+                    int soHoaDonCu = (kh.getSoHoaDon() != null) ? kh.getSoHoaDon() : 0;
+                    double tongChiCu = (kh.getTongChi() != null) ? kh.getTongChi() : 0.0;
+
+                    // Cộng dồn
+                    kh.setSoHoaDon(soHoaDonCu + 1);
+                    kh.setTongChi(tongChiCu + hd.getTongTien());
+
+                    // Lưu lại khách hàng
+                    khachHangRepo.save(kh);
+                }
+
                 hoaDonRepo.save(hd);
             });
 
