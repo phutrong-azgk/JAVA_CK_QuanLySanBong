@@ -54,6 +54,30 @@
                 </div>
             </div>
         </div>
+
+    </div>
+
+    <div class="modal fade" id="startSessionModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-play-circle me-2"></i>Mở Sân</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="startMaSan" />
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn khách hàng</label>
+                        <select id="startMaKhach" class="form-select">
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-success" onclick="confirmStartSession()">Bắt đầu</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <style>
@@ -157,10 +181,40 @@
 
         // --- CÁC HÀM XỬ LÝ SÂN (Đã đưa ra ngoài để hoạt động được) ---
 
+        // Hàm 1: Mở Modal thay vì gọi API ngay lập tức
         function startSession(maSan) {
-            $.post('/san/api/start', { maSan: maSan }, function(res) {
+            $('#startMaSan').val(maSan);
+
+            // Gọi API lấy danh sách khách hàng (Đảm bảo bạn đã có API này, nếu dùng tên khác hãy sửa lại URL)
+            $.get('/khach/api/get-all', function (customers) {
+                const select = $('#startMaKhach');
+                select.empty();
+
+                // Mặc định luôn có tùy chọn Khách vãng lai
+                select.append('<option value="">-- Khách vãng lai --</option>');
+
+                if(customers && customers.length > 0) {
+                    customers.forEach(kh => {
+                        select.append(`<option value="${kh.maKhach}">${kh.tenKhach} - ${kh.soDienThoai || ''}</option>`);
+                    });
+                }
+                $('#startSessionModal').modal('show');
+            }).fail(function() {
+                // Đề phòng API lỗi hoặc chưa viết, vẫn cho phép mở sân dưới dạng Khách vãng lai
+                $('#startMaKhach').html('<option value="">-- Khách vãng lai --</option>');
+                $('#startSessionModal').modal('show');
+            });
+        }
+
+        // Hàm 2: Gửi dữ liệu xuống Server khi người dùng bấm nút "Bắt đầu" trong Modal
+        function confirmStartSession() {
+            const maSan = $('#startMaSan').val();
+            const maKhach = $('#startMaKhach').val();
+
+            $.post('/san/api/start', { maSan: maSan, maKhach: maKhach }, function(res) {
                 if(res.success) {
-                    loadTables();
+                    $('#startSessionModal').modal('hide');
+                    loadTables(); // Load lại lưới để cập nhật màu đỏ (Đang chơi)
                 } else {
                     alert(res.message || "Không thể bắt đầu!");
                 }

@@ -19,6 +19,15 @@ public class SanBongController {
     @Autowired
     private SanBongService sanBongService;
 
+    @Autowired
+    private HUIT.football.repository.SanBongRepository sanBongRepo;
+
+    @Autowired
+    private HUIT.football.repository.HoaDonRepository hoaDonRepo;
+
+    @Autowired
+    private HUIT.football.repository.KhachHangRepository khachHangRepo;
+
     // Trả về file HTML giao diện quản lý sân
     @GetMapping
     public String sanBongPage() {
@@ -65,14 +74,12 @@ public class SanBongController {
         return ResponseEntity.ok(response);
     }
 
-    @Autowired
-    private HUIT.football.repository.SanBongRepository sanBongRepo;
-    @Autowired
-    private HUIT.football.repository.HoaDonRepository hoaDonRepo;
+
 
     @PostMapping("/api/start")
     @ResponseBody
-    public ResponseEntity<?> startSession(@RequestParam("maSan") Long maSan) {
+    public ResponseEntity<?> startSession(@RequestParam("maSan") Long maSan,
+                                          @RequestParam(value = "maKhach", required = false) Long maKhach) {
         SanBong san = sanBongRepo.findById(maSan).orElse(null);
         if (san != null) {
             san.setTrangThai("Đang Chơi");
@@ -82,6 +89,13 @@ public class SanBongController {
             hd.setSanBong(san);
             hd.setThoiGianBatDau(java.time.LocalDateTime.now());
             hd.setTrangThai("Đang Chơi");
+
+            // LOGIC MỚI: Liên kết Hóa đơn với Khách hàng nếu có chọn
+            if (maKhach != null) {
+                HUIT.football.model.KhachHang kh = khachHangRepo.findById(maKhach).orElse(null);
+                hd.setKhachHang(kh);
+            }
+
             hoaDonRepo.save(hd);
 
             return ResponseEntity.ok(Map.of("success", true));
@@ -97,13 +111,16 @@ public class SanBongController {
 
             // Cập nhật hóa đơn
             hoaDonRepo.findBySanBongAndTrangThai(san, "Đang Chơi").ifPresent(hd -> {
-                hd.setThoiGianKetThuc(java.time.LocalDateTime.now());
+                java.time.LocalDateTime bayGio = java.time.LocalDateTime.now();
+                hd.setThoiGianKetThuc(bayGio);
                 hd.setTrangThai("Đã Thanh Toán");
 
-                // LOGIC MỚI: HOÀN TRẢ KHO CHO "THUÊ ĐỒ"
-                // Lấy tất cả các món đã gọi trong hóa đơn này
+                // 1. TÍNH TIỀN DỊCH VỤ VÀ HOÀN TRẢ KHO CHO "THUÊ ĐỒ"
                 List<HUIT.football.model.ChiTietHoaDon> listChiTiet = chiTietRepo.findByHoaDon(hd);
+                double tienDichVu = 0.0;
                 for (HUIT.football.model.ChiTietHoaDon ct : listChiTiet) {
+                    tienDichVu += ct.getThanhTien(); // Cộng dồn tiền dịch vụ
+
                     HUIT.football.model.MatHang mh = ct.getMatHang();
                     // Nếu là đồ thuê thì cộng dồn số lượng về lại kho
                     if ("Thuê đồ".equals(mh.getLoaiHang())) {
@@ -111,6 +128,18 @@ public class SanBongController {
                         matHangRepo.save(mh); // Lưu lại vào DB
                     }
                 }
+                hd.setTienDichVu(tienDichVu);
+
+                // 2. TÍNH TIỀN SÂN (Thời gian đá x Giá mỗi giờ)
+                java.time.Duration duration = java.time.Duration.between(hd.getThoiGianBatDau(), bayGio);
+                long soPhut = duration.toMinutes();
+                if (soPhut < 1) soPhut = 1; // Tránh trường hợp test click quá nhanh làm số phút bằng 0
+
+                double tienSan = (soPhut / 60.0) * san.getGia();
+                hd.setTienSan(tienSan);
+
+                // 3. TỔNG TIỀN HÓA ĐƠN
+                hd.setTongTien(tienSan + tienDichVu);
 
                 hoaDonRepo.save(hd);
             });
@@ -119,7 +148,7 @@ public class SanBongController {
             san.setTrangThai("Trống");
             sanBongRepo.save(san);
 
-            return ResponseEntity.ok(Map.of("success", true, "message", "Thanh toán thành công! Các đồ thuê đã được hoàn lại kho."));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Thanh toán thành công! Tiền và kho đã được chốt."));
         }
         return ResponseEntity.ok(Map.of("success", false));
     }
