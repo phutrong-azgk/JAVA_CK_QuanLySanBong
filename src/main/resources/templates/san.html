@@ -80,6 +80,31 @@
         </div>
     </div>
 
+    <div class="modal fade" id="endSessionModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-calculator me-2"></i>Thanh Toán</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="endMaSan" />
+                    <p>Chốt hóa đơn cho: <strong id="endTenSan" class="text-danger"></strong></p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Áp dụng Khuyến mãi</label>
+                        <select id="endKhuyenMai" class="form-select">
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmEndSession()">Chốt thanh toán</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         .table-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px; transition: all 0.3s; background: #fff; }
         .table-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); transform: translateY(-2px); }
@@ -94,6 +119,7 @@
         .status-badge.reserved { background: #fef3c7; color: #92400e; }
         .session-info { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #ccc; }
     </style>
+
 
     <script th:inline="javascript">
         let tables = [];
@@ -156,7 +182,7 @@
                     }
                 } else if (isOccupied) {
                     if (isAdmin) {
-                        buttonsHtml += `<button class="btn btn-primary w-100" onclick="endSession(${table.maSan})">Tính Tiền</button>`;
+                        buttonsHtml += `<button class="btn btn-primary w-100" onclick="endSession(${table.maSan}, '${table.tenSan}')">Tính Tiền</button>`;
                     } else {
                         buttonsHtml += `<button class="btn btn-danger w-100" disabled>Đang có khách đá</button>`;
                     }
@@ -221,17 +247,43 @@
             });
         }
 
-        function endSession(maSan) {
-            if(confirm('Xác nhận thanh toán và đóng sân này?')) {
-                $.post('/san/api/end', { maSan: maSan }, function(res) {
-                    if(res.success) {
-                        alert(res.message);
-                        loadTables();
-                    } else {
-                        alert("Thanh toán thất bại!");
+        function endSession(maSan, tenSan) {
+            $('#endMaSan').val(maSan);
+            $('#endTenSan').text(tenSan);
+
+            // Tải danh sách Khuyến mãi từ DB lên
+            $.get('/khuyenmai/api/get-all', function(promos) {
+                const select = $('#endKhuyenMai');
+                select.empty();
+                select.append('<option value="">-- Không sử dụng khuyến mãi --</option>');
+
+                const now = new Date();
+                promos.forEach(p => {
+                    // Chỉ hiển thị các khuyến mãi đang trong thời hạn
+                    const start = new Date(p.ngayBatDau);
+                    const end = new Date(p.ngayKetThuc);
+                    if (now >= start && now <= end) {
+                        select.append(`<option value="${p.maKm}">${p.tenKm} (-${p.phanTramGiam}%)</option>`);
                     }
                 });
-            }
+
+                $('#endSessionModal').modal('show');
+            });
+        }
+
+        function confirmEndSession() {
+            const maSan = $('#endMaSan').val();
+            const maKm = $('#endKhuyenMai').val(); // Lấy ID khuyến mãi
+
+            $.post('/san/api/end', { maSan: maSan, maKm: maKm }, function(res) {
+                if(res.success) {
+                    $('#endSessionModal').modal('hide');
+                    alert(res.message);
+                    loadTables(); // Load lại lưới để mất màu đỏ
+                } else {
+                    alert("Thanh toán thất bại!");
+                }
+            });
         }
 
         function bookSession(maSan) {

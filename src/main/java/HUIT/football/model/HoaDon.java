@@ -41,4 +41,12 @@ public class HoaDon {
 
     @Column(name = "trang_thai")
     private String trangThai; // Đang Chơi, Đã Thanh Toán
+    // Nối với bảng Khuyến Mãi (Nếu lỗi import, hãy trỏ chuột và ấn Alt+Enter)
+    @ManyToOne
+    @JoinColumn(name = "ma_km")
+    private KhuyenMai khuyenMai;
+
+    // Lưu lại số tiền đã được giảm
+    @Column(name = "tien_giam_gia")
+    private Double tienGiamGia = 0.0;
 }

@@ -20,6 +20,9 @@ public class SanBongController {
     private SanBongService sanBongService;
 
     @Autowired
+    private HUIT.football.repository.KhuyenMaiRepository khuyenMaiRepo;
+
+    @Autowired
     private HUIT.football.repository.SanBongRepository sanBongRepo;
 
     @Autowired
@@ -105,68 +108,72 @@ public class SanBongController {
 
     @PostMapping("/api/end")
     @ResponseBody
-    public ResponseEntity<?> endSession(@RequestParam("maSan") Long maSan) {
+    public ResponseEntity<?> endSession(@RequestParam("maSan") Long maSan,
+                                        @RequestParam(value = "maKm", required = false) Long maKm) { // Nhận thêm tham số maKm
         SanBong san = sanBongRepo.findById(maSan).orElse(null);
         if (san != null) {
 
-            // Cập nhật hóa đơn
             hoaDonRepo.findBySanBongAndTrangThai(san, "Đang Chơi").ifPresent(hd -> {
                 java.time.LocalDateTime bayGio = java.time.LocalDateTime.now();
                 hd.setThoiGianKetThuc(bayGio);
                 hd.setTrangThai("Đã Thanh Toán");
 
-                // 1. TÍNH TIỀN DỊCH VỤ VÀ HOÀN TRẢ KHO CHO "THUÊ ĐỒ"
+                // 1. TÍNH TIỀN DỊCH VỤ VÀ HOÀN KHO
                 List<HUIT.football.model.ChiTietHoaDon> listChiTiet = chiTietRepo.findByHoaDon(hd);
                 double tienDichVu = 0.0;
                 for (HUIT.football.model.ChiTietHoaDon ct : listChiTiet) {
-                    tienDichVu += ct.getThanhTien(); // Cộng dồn tiền dịch vụ
-
+                    tienDichVu += ct.getThanhTien();
                     HUIT.football.model.MatHang mh = ct.getMatHang();
-                    // Nếu là đồ thuê thì cộng dồn số lượng về lại kho
                     if ("Thuê đồ".equals(mh.getLoaiHang())) {
                         mh.setSoLuongTon(mh.getSoLuongTon() + ct.getSoLuong());
-                        matHangRepo.save(mh); // Lưu lại vào DB
+                        matHangRepo.save(mh);
                     }
                 }
                 hd.setTienDichVu(tienDichVu);
 
-                // 2. TÍNH TIỀN SÂN (Thời gian đá x Giá mỗi giờ)
+                // 2. TÍNH TIỀN SÂN
                 java.time.Duration duration = java.time.Duration.between(hd.getThoiGianBatDau(), bayGio);
                 long soPhut = duration.toMinutes();
-                if (soPhut < 1) soPhut = 1; // Tránh trường hợp test click quá nhanh làm số phút bằng 0
-
+                if (soPhut < 1) soPhut = 1;
                 double tienSan = (soPhut / 60.0) * san.getGia();
                 hd.setTienSan(tienSan);
 
-                // 3. TỔNG TIỀN HÓA ĐƠN
-                hd.setTongTien(tienSan + tienDichVu);
+                // 3. TÍNH KHUYẾN MÃI (LOGIC MỚI)
+                double tongTruocGiam = tienSan + tienDichVu;
+                double tienGiamGia = 0.0;
 
-                // ========================================================
-                // 4. LOGIC MỚI: CỘNG DỒN CHI TIÊU VÀ SỐ HÓA ĐƠN CHO KHÁCH
-                // ========================================================
+                // Nếu thu ngân có chọn Khuyến mãi trên giao diện
+                if (maKm != null) {
+                    HUIT.football.model.KhuyenMai km = khuyenMaiRepo.findById(maKm).orElse(null);
+                    if (km != null) {
+                        hd.setKhuyenMai(km); // Lưu liên kết vào DB
+                        tienGiamGia = tongTruocGiam * (km.getPhanTramGiam() / 100.0); // Tính số tiền được giảm
+                    }
+                }
+                hd.setTienGiamGia(tienGiamGia);
+
+                // 4. CHỐT TỔNG TIỀN SAU GIẢM
+                double tongTienSauGiam = tongTruocGiam - tienGiamGia;
+                hd.setTongTien(tongTienSauGiam);
+
+                // 5. CỘNG DỒN CHI TIÊU CHO KHÁCH
                 if (hd.getKhachHang() != null) {
                     HUIT.football.model.KhachHang kh = hd.getKhachHang();
-
-                    // Lấy số cũ (nếu null thì coi như là 0)
                     int soHoaDonCu = (kh.getSoHoaDon() != null) ? kh.getSoHoaDon() : 0;
                     double tongChiCu = (kh.getTongChi() != null) ? kh.getTongChi() : 0.0;
 
-                    // Cộng dồn
                     kh.setSoHoaDon(soHoaDonCu + 1);
-                    kh.setTongChi(tongChiCu + hd.getTongTien());
-
-                    // Lưu lại khách hàng
+                    kh.setTongChi(tongChiCu + tongTienSauGiam); // Lưu số tiền đã trừ khuyến mãi
                     khachHangRepo.save(kh);
                 }
 
                 hoaDonRepo.save(hd);
             });
 
-            // Trả sân về Trống
             san.setTrangThai("Trống");
             sanBongRepo.save(san);
 
-            return ResponseEntity.ok(Map.of("success", true, "message", "Thanh toán thành công! Tiền và kho đã được chốt."));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Thanh toán thành công! Đã áp dụng khuyến mãi (nếu có)."));
         }
         return ResponseEntity.ok(Map.of("success", false));
     }
