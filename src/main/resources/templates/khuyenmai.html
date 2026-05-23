@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<head>
+    <title>Quản lý khuyến mãi</title>
+</head>
+<body>
+<section>
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="page-title"><i class="fas fa-gift me-2"></i>Quản lý khuyến mãi</h2>
+            <button class="btn btn-primary" onclick="showAddPromotionModal()">
+                <i class="fas fa-plus"></i> Thêm khuyến mãi
+            </button>
+        </div>
+    </div>
+
+    <div class="row" id="promotionsGrid"></div>
+
+    <div class="modal fade" id="promotionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalTitle">Thêm khuyến mãi mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="promotionForm">
+                        <input type="hidden" id="maKm" name="maKm" />
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Tên chương trình <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="tenKm" name="tenKm" required />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Phần trăm giảm (%) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="phanTramGiam" name="phanTramGiam" min="0" max="100" required />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Ngày bắt đầu <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="ngayBatDau" name="ngayBatDau" required />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Ngày kết thúc <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="ngayKetThuc" name="ngayKetThuc" required />
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label>Điều kiện áp dụng</label>
+                                <textarea class="form-control" id="dieuKien" name="dieuKien" rows="3" placeholder="VD: Áp dụng từ 14:00 - 17:00..."></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" onclick="savePromotion()">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .promotion-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 20px; background: white; transition: all 0.3s; }
+        .promotion-card:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .promotion-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; }
+        .promotion-icon { font-size: 32px; color: #8b5cf6; }
+        .promotion-title { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+        .promotion-value { font-size: 24px; font-weight: bold; color: #16a34a; margin: 12px 0; }
+        .promotion-dates { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #6b7280; margin-bottom: 12px; }
+        .promotion-status { padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-upcoming { background: #dbeafe; color: #1e40af; }
+        .status-expired { background: #fee2e2; color: #991b1b; }
+    </style>
+
+    <script th:inline="javascript">
+        let promotions = [];
+        let editingPromotion = null;
+
+        $(document).ready(function () {
+            loadPromotions();
+        });
+
+        function loadPromotions() {
+            $.get('/khuyenmai/api/get-all', function (data) {
+                promotions = data;
+                renderPromotions();
+            });
+        }
+
+        function renderPromotions() {
+            const grid = $('#promotionsGrid');
+            grid.empty();
+
+            promotions.forEach(promo => {
+                const status = getPromotionStatus(promo);
+                const card = `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="promotion-card shadow-sm">
+                            <div class="promotion-header">
+                                <div class="promotion-icon"><i class="fas fa-ticket-alt"></i></div>
+                                <span class="promotion-status ${status.class}">${status.label}</span>
+                            </div>
+                            <div class="promotion-title">${promo.tenKm}</div>
+                            <div class="promotion-value">${promo.phanTramGiam}% GIẢM</div>
+                            <div class="promotion-dates">
+                                <i class="fas fa-calendar"></i>
+                                <span>${promo.ngayBatDau} đến ${promo.ngayKetThuc}</span>
+                            </div>
+                            <div class="mt-3 pt-3 border-top d-flex gap-2">
+                                <button class="btn btn-sm btn-warning flex-fill" onclick='editPromotion(${JSON.stringify(promo)})'><i class="fas fa-edit"></i> Sửa</button>
+                                <button class="btn btn-sm btn-danger" onclick="deletePromotion(${promo.maKm})"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.append(card);
+            });
+        }
+
+        function getPromotionStatus(promo) {
+            const now = new Date();
+            const start = new Date(promo.ngayBatDau);
+            const end = new Date(promo.ngayKetThuc);
+            if (now < start) return { label: 'Chưa bắt đầu', class: 'status-upcoming' };
+            if (now > end) return { label: 'Đã kết thúc', class: 'status-expired' };
+            return { label: 'Đang hoạt động', class: 'status-active' };
+        }
+
+        function showAddPromotionModal() {
+            editingPromotion = null;
+            $('#modalTitle').text('Thêm khuyến mãi mới');
+            $('#promotionForm')[0].reset();
+            $('#maKm').val('');
+            $('#promotionModal').modal('show');
+        }
+
+        function editPromotion(promo) {
+            editingPromotion = promo;
+            $('#modalTitle').text('Chỉnh sửa khuyến mãi');
+            $('#maKm').val(promo.maKm);
+            $('#tenKm').val(promo.tenKm);
+            $('#phanTramGiam').val(promo.phanTramGiam);
+            $('#ngayBatDau').val(promo.ngayBatDau);
+            $('#ngayKetThuc').val(promo.ngayKetThuc);
+            $('#dieuKien').val(promo.dieuKien);
+            $('#promotionModal').modal('show');
+        }
+
+        function savePromotion() {
+            const data = $('#promotionForm').serialize();
+            const url = editingPromotion ? '/khuyenmai/api/edit' : '/khuyenmai/api/create';
+
+            $.post(url, data, function (response) {
+                if (response.success) {
+                    $('#promotionModal').modal('hide');
+                    loadPromotions();
+                } else {
+                    alert(response.message);
+                }
+            });
+        }
+
+        function deletePromotion(maKM) {
+            if (confirm('Bạn có chắc chắn muốn xóa chương trình khuyến mãi này?')) {
+                $.post('/khuyenmai/api/delete', { maKM: maKM }, function (response) {
+                    if (response.success) loadPromotions();
+                });
+            }
+        }
+    </script>
+</section>
+</body>
+</html>

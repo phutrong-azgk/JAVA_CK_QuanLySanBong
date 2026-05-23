@@ -68,12 +68,22 @@
                 </li>
                 <li sec:authorize="hasRole('ADMIN')" class="nav-item">
                     <a th:href="@{/taikhoan}" class="nav-link">
-                        <i class="fas fa-user-shield"></i> <span>Quản lý tài khoản</span>
+                        <i class="fas fa-users-cog"></i> <span>Quản lý tài khoản</span>
                     </a>
                 </li>
                 <li sec:authorize="hasRole('ADMIN')" class="nav-item">
                     <a th:href="@{/khach}" class="nav-link">
-                        <i class="fas fa-user-shield"></i> <span>Quản lý khách hàng</span>
+                        <i class="fas fa-users"></i> <span>Quản lý khách hàng</span>
+                    </a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a th:href="@{/khuyenmai}" class="nav-link">
+                        <i class="fas fa-gift"></i> <span>Quản lý khuyến mãi</span>
+                    </a>
+                </li>
+                <li sec:authorize="hasRole('ADMIN')" class="nav-item">
+                    <a th:href="@{/baocao}" class="nav-link">
+                        <i class="fas fa-chart-line"></i> <span>Báo cáo thống kê</span>
                     </a>
                 </li>
             </ul>
