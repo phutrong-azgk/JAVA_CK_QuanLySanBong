@@ -124,7 +124,10 @@
     <script th:inline="javascript">
         let tables = [];
         let editingTable = null;
+
         const isAdmin = /*[[${#authorization.expression('hasRole(''ADMIN'')')}]]*/ false;
+        // Thêm biến isStaff cho Nhân viên
+        const isStaff = /*[[${#authorization.expression('hasAnyRole(''ADMIN'', ''NHAN_VIEN'')')}]]*/ false;
 
         $(document).ready(function () {
             loadTables();
@@ -157,7 +160,7 @@
                 }
 
                 let buttonsHtml = '';
-                // Nếu là Admin thì hiện nút Sửa/Xóa
+                // 1. Chỉ ADMIN mới có nút Sửa/Xóa
                 if (isAdmin) {
                     buttonsHtml += `
                         <div class="btn-group w-100 mb-2">
@@ -167,21 +170,21 @@
                     `;
                 }
 
-                // Logic cho nút Bắt đầu / Tính tiền / Đặt sân dựa trên quyền Admin/Khách
+                // 2. NHÂN VIÊN VÀ ADMIN đều ấn được các nút Vận hành (Bắt đầu, Tính tiền)
                 if (table.trangThai === 'Trống') {
-                    if (isAdmin) {
+                    if (isStaff) {
                         buttonsHtml += `<button class="btn btn-success w-100" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Bắt đầu</button>`;
                     } else {
                         buttonsHtml += `<button class="btn btn-info text-white w-100" onclick="bookSession(${table.maSan})"><i class="fas fa-calendar-check"></i> Đặt Sân</button>`;
                     }
                 } else if (isReserved) {
-                    if (isAdmin) {
+                    if (isStaff) {
                         buttonsHtml += `<button class="btn btn-warning w-100" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Khách tới (Bắt đầu)</button>`;
                     } else {
                         buttonsHtml += `<button class="btn btn-secondary w-100" disabled>Sân đã được đặt</button>`;
                     }
                 } else if (isOccupied) {
-                    if (isAdmin) {
+                    if (isStaff) {
                         buttonsHtml += `<button class="btn btn-primary w-100" onclick="endSession(${table.maSan}, '${table.tenSan}')">Tính Tiền</button>`;
                     } else {
                         buttonsHtml += `<button class="btn btn-danger w-100" disabled>Đang có khách đá</button>`;
@@ -204,6 +207,8 @@
                 grid.append(cardHtml);
             });
         }
+
+        // ... CÁC HÀM XỬ LÝ KHÁC GIỮ NGUYÊN BÊN DƯỚI ...
 
         // --- CÁC HÀM XỬ LÝ SÂN (Đã đưa ra ngoài để hoạt động được) ---
 
