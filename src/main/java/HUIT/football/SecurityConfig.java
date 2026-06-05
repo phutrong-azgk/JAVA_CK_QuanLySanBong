@@ -26,8 +26,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/register", "/css/**", "/js/**", "/error").permitAll()
 
-                        // Cả ADMIN và NHÂN VIÊN đều vào được trang Quản lý Sân và Gọi Đồ
-                        .requestMatchers("/san/**", "/order/**").hasAnyRole("ADMIN", "NHAN_VIEN")
+                        // 1. MỞ KHÓA TRANG SÂN: Cả ADMIN, NHÂN VIÊN và KHÁCH đều vào được
+                        .requestMatchers("/san/**").hasAnyRole("ADMIN", "NHAN_VIEN", "KHACH")
+
+                        // 2. CHỈ ADMIN và NHÂN VIÊN mới được vào trang Gọi đồ dịch vụ
+                        .requestMatchers("/order/**").hasAnyRole("ADMIN", "NHAN_VIEN")
 
                         // CHỈ ADMIN mới vào được các trang Cấu hình, Thống kê, Quản lý
                         .requestMatchers("/taikhoan/**", "/khuyenmai/**", "/baocao/**", "/khach/**", "/kho/**").hasRole("ADMIN")
