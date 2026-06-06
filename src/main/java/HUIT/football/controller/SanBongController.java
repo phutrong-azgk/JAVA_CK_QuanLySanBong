@@ -109,7 +109,8 @@ public class SanBongController {
     @PostMapping("/api/end")
     @ResponseBody
     public ResponseEntity<?> endSession(@RequestParam("maSan") Long maSan,
-                                        @RequestParam(value = "maKm", required = false) Long maKm) { // Nhận thêm tham số maKm
+                                        @RequestParam(value = "maKm", required = false) Long maKm,
+                                        @RequestParam("hinhThuc") String hinhThuc) { // Nhận thêm tham số Hình thức thanh toán
         SanBong san = sanBongRepo.findById(maSan).orElse(null);
         if (san != null) {
 
@@ -117,6 +118,9 @@ public class SanBongController {
                 java.time.LocalDateTime bayGio = java.time.LocalDateTime.now();
                 hd.setThoiGianKetThuc(bayGio);
                 hd.setTrangThai("Đã Thanh Toán");
+
+                // LƯU HÌNH THỨC THANH TOÁN VÀO CƠ SỞ DỮ LIỆU
+                hd.setHinhThucThanhToan(hinhThuc);
 
                 // 1. TÍNH TIỀN DỊCH VỤ VÀ HOÀN KHO
                 List<HUIT.football.model.ChiTietHoaDon> listChiTiet = chiTietRepo.findByHoaDon(hd);
@@ -138,7 +142,7 @@ public class SanBongController {
                 double tienSan = (soPhut / 60.0) * san.getGia();
                 hd.setTienSan(tienSan);
 
-                // 3. TÍNH KHUYẾN MÃI (LOGIC MỚI)
+                // 3. TÍNH KHUYẾN MÃI
                 double tongTruocGiam = tienSan + tienDichVu;
                 double tienGiamGia = 0.0;
 
@@ -173,7 +177,7 @@ public class SanBongController {
             san.setTrangThai("Trống");
             sanBongRepo.save(san);
 
-            return ResponseEntity.ok(Map.of("success", true, "message", "Thanh toán thành công! Đã áp dụng khuyến mãi (nếu có)."));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Thanh toán thành công!"));
         }
         return ResponseEntity.ok(Map.of("success", false));
     }

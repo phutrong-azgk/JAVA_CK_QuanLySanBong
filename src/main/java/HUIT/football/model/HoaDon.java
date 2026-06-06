@@ -49,4 +49,7 @@ public class HoaDon {
     // Lưu lại số tiền đã được giảm
     @Column(name = "tien_giam_gia")
     private Double tienGiamGia = 0.0;
+
+    @Column(name = "hinh_thuc_thanh_toan")
+    private String hinhThucThanhToan; // "Tiền mặt" hoặc "Chuyển khoản"
 }

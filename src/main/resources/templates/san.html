@@ -96,7 +96,18 @@
                         <select id="endKhuyenMai" class="form-select">
                         </select>
                     </div>
-                </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Phương thức thanh toán</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="hinhThuc" id="cash" value="Tiền mặt" checked>
+                            <label class="btn btn-outline-success" for="cash"><i class="fas fa-wallet me-1"></i>Tiền mặt</label>
+
+                            <input type="radio" class="btn-check" name="hinhThuc" id="bank" value="Chuyển khoản">
+                            <label class="btn btn-outline-primary" for="bank"><i class="fas fa-university me-1"></i>Chuyển khoản</label>
+                        </div>
+                    </div>
+
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                     <button type="button" class="btn btn-danger" onclick="confirmEndSession()">Chốt thanh toán</button>
@@ -279,8 +290,9 @@
         function confirmEndSession() {
             const maSan = $('#endMaSan').val();
             const maKm = $('#endKhuyenMai').val(); // Lấy ID khuyến mãi
+            const hinhThuc = $('input[name="hinhThuc"]:checked').val();
 
-            $.post('/san/api/end', { maSan: maSan, maKm: maKm }, function(res) {
+            $.post('/san/api/end', { maSan: maSan, maKm: maKm, hinhThuc: hinhThuc }, function(res) {
                 if(res.success) {
                     $('#endSessionModal').modal('hide');
                     alert(res.message);
