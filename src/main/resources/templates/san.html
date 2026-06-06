@@ -107,7 +107,7 @@
                             <label class="btn btn-outline-primary" for="bank"><i class="fas fa-university me-1"></i>Chuyển khoản</label>
                         </div>
                     </div>
-
+                </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                     <button type="button" class="btn btn-danger" onclick="confirmEndSession()">Chốt thanh toán</button>
@@ -115,6 +115,39 @@
             </div>
         </div>
     </div>
+
+        <div class="modal fade" id="qrModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-sm modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="fas fa-qrcode me-2"></i>Quét mã thanh toán</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <p class="text-muted mb-2">Vui lòng yêu cầu khách quét mã</p>
+                        <img src="https://img.vietqr.io/image/MB-0123456789-compact2.png" alt="QR Code" class="img-fluid border rounded p-2 mb-3" style="max-width: 200px;">
+                        <p class="fw-bold text-danger mb-0">Đang chờ thanh toán...</p>
+                    </div>
+                    <div class="modal-footer bg-light justify-content-center">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" onclick="processPayment()">Xác nhận đã nhận tiền</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="successModal" tabindex="-1">
+            <div class="modal-dialog modal-sm modal-dialog-centered">
+                <div class="modal-content border-0 shadow text-center">
+                    <div class="modal-body p-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 60px; margin-bottom: 15px;"></i>
+                        <h4 class="text-success fw-bold">Thành Công!</h4>
+                        <p id="successMessage" class="text-muted mb-4">Giao dịch đã được ghi nhận.</p>
+                        <button type="button" class="btn btn-success w-100 px-4" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     <style>
         .table-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px; transition: all 0.3s; background: #fff; }
@@ -288,17 +321,51 @@
         }
 
         function confirmEndSession() {
+            const hinhThuc = $('input[name="hinhThuc"]:checked').val();
+
+            if (hinhThuc === 'Chuyển khoản') {
+                // Đóng form tính tiền
+                $('#endSessionModal').modal('hide');
+
+                // DÙNG SETTIMEOUT ĐỂ TRÁNH LỖI KẸT MÀN HÌNH
+                setTimeout(() => {
+                    // Tích hợp QR Động (VietQR)
+                    const nganHang = 'MB'; // Tên viết tắt ngân hàng của bạn
+                    const soTaiKhoan = '0123456789'; // Số tài khoản thật
+                    const tenSan = $('#endTenSan').text();
+                    const noiDung = 'Thanh toan ' + tenSan.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ /g, '');
+
+                    const soTien = 100000; // Giả định số tiền
+
+                    const qrUrl = `https://img.vietqr.io/image/${nganHang}-${soTaiKhoan}-compact2.png?amount=${soTien}&addInfo=${encodeURIComponent(noiDung)}`;
+
+                    $('#qrModal img').attr('src', qrUrl);
+                    $('#qrModal').modal('show');
+                }, 400); // Đợi 400ms
+
+            } else {
+                processPayment();
+            }
+        }
+
+        function processPayment() {
             const maSan = $('#endMaSan').val();
-            const maKm = $('#endKhuyenMai').val(); // Lấy ID khuyến mãi
+            const maKm = $('#endKhuyenMai').val();
             const hinhThuc = $('input[name="hinhThuc"]:checked').val();
 
             $.post('/san/api/end', { maSan: maSan, maKm: maKm, hinhThuc: hinhThuc }, function(res) {
                 if(res.success) {
                     $('#endSessionModal').modal('hide');
-                    alert(res.message);
-                    loadTables(); // Load lại lưới để mất màu đỏ
+                    $('#qrModal').modal('hide');
+
+                    // DÙNG SETTIMEOUT ĐỂ TRÁNH LỖI KẸT MÀN HÌNH
+                    setTimeout(() => {
+                        $('#successMessage').text(res.message);
+                        $('#successModal').modal('show');
+                        loadTables();
+                    }, 400); // Đợi 400ms
                 } else {
-                    alert("Thanh toán thất bại!");
+                    alert("Thanh toán thất bại: " + res.message);
                 }
             });
         }
