@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Controller
 @RequestMapping("/san")
@@ -41,21 +42,7 @@ public class SanBongController {
     // CÁC ENDPOINT API DÀNH CHO JQUERY AJAX
     // ==========================================
 
-    @GetMapping("/api/get-all")
-    @ResponseBody
-    public List<SanBong> getAllSanAPI() {
-        return sanBongService.getAllSan();
-    }
 
-    @PostMapping("/api/create")
-    @ResponseBody
-    public ResponseEntity<?> createSan(@ModelAttribute SanBong sanBong) {
-        sanBongService.saveSan(sanBong);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Thêm sân thành công!");
-        return ResponseEntity.ok(response);
-    }
 
     @PostMapping("/api/edit")
     @ResponseBody
@@ -85,22 +72,32 @@ public class SanBongController {
                                           @RequestParam(value = "maKhach", required = false) Long maKhach) {
         SanBong san = sanBongRepo.findById(maSan).orElse(null);
         if (san != null) {
-            san.setTrangThai("Đang Chơi");
-            sanBongRepo.save(san);
 
-            HoaDon hd = new HoaDon();
-            hd.setSanBong(san);
-            hd.setThoiGianBatDau(java.time.LocalDateTime.now());
-            hd.setTrangThai("Đang Chơi");
+            // Tìm xem có hóa đơn đặt trước nào của sân này không
+            Optional<HoaDon> reservedHd = hoaDonRepo.findAll().stream()
+                    .filter(h -> h.getSanBong().getMaSan().equals(maSan) && h.getTrangThai().equals("Đặt Trước"))
+                    .findFirst();
 
-            // LOGIC MỚI: Liên kết Hóa đơn với Khách hàng nếu có chọn
-            if (maKhach != null) {
-                HUIT.football.model.KhachHang kh = khachHangRepo.findById(maKhach).orElse(null);
-                hd.setKhachHang(kh);
+            if (reservedHd.isPresent()) {
+                HoaDon hd = reservedHd.get();
+                hd.setTrangThai("Đang Chơi");
+                hd.setThoiGianBatDau(java.time.LocalDateTime.now()); // Reset lại thời gian bắt đầu đá thật
+                hoaDonRepo.save(hd);
+            } else {
+                // Nếu là sân trống hoàn toàn thì tạo mới bình thường
+                HoaDon hd = new HoaDon();
+                hd.setSanBong(san);
+                hd.setThoiGianBatDau(java.time.LocalDateTime.now());
+                hd.setTrangThai("Đang Chơi");
+                if (maKhach != null) {
+                    HUIT.football.model.KhachHang kh = khachHangRepo.findById(maKhach).orElse(null);
+                    hd.setKhachHang(kh);
+                }
+                hoaDonRepo.save(hd);
             }
 
-            hoaDonRepo.save(hd);
-
+            san.setTrangThai("Đang Chơi");
+            sanBongRepo.save(san);
             return ResponseEntity.ok(Map.of("success", true));
         }
         return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi!"));
@@ -200,10 +197,77 @@ public class SanBongController {
             san.setTrangThai("Đặt Trước");
             sanBongRepo.save(san);
 
-            // Tùy chọn: Bạn có thể lưu thêm thông tin ai đặt vào bảng riêng nếu muốn sau này
+            String username = principal.getName();
+            HUIT.football.model.KhachHang kh = khachHangRepo.findByTaiKhoan(username).orElse(null);
+
+            HoaDon hd = new HoaDon();
+            hd.setSanBong(san);
+            hd.setKhachHang(kh);
+            hd.setThoiGianBatDau(java.time.LocalDateTime.now());
+            hd.setTrangThai("Đặt Trước");
+            hoaDonRepo.save(hd);
+
             return ResponseEntity.ok(Map.of("success", true, "message", "Đặt sân thành công! Vui lòng đến đúng giờ."));
         }
         return ResponseEntity.ok(Map.of("success", false, "message", "Sân này đã có người đặt hoặc đang chơi!"));
+    }
+
+    @GetMapping("/api/get-all")
+    @ResponseBody
+    public List<Map<String, Object>> getAllSanAPI() {
+        List<SanBong> sans = sanBongService.getAllSan();
+        List<Map<String, Object>> responseList = new java.util.ArrayList<>();
+
+        for (SanBong s : sans) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("maSan", s.getMaSan());
+            map.put("tenSan", s.getTenSan());
+            map.put("gia", s.getGia());
+            map.put("trangThai", s.getTrangThai());
+
+            // Tìm hóa đơn đang kích hoạt (Đang Chơi hoặc Đặt Trước) của sân này
+            Optional<HoaDon> activeHd = hoaDonRepo.findAll().stream()
+                    .filter(hd -> hd.getSanBong().getMaSan().equals(s.getMaSan())
+                            && (hd.getTrangThai().equals("Đang Chơi") || hd.getTrangThai().equals("Đặt Trước")))
+                    .findFirst();
+
+            if (activeHd.isPresent() && activeHd.get().getKhachHang() != null) {
+                HUIT.football.model.KhachHang kh = activeHd.get().getKhachHang();
+                map.put("tenKhach", kh.getTenKhach());
+                map.put("soDienThoai", kh.getSoDienThoai() != null ? kh.getSoDienThoai() : "Chưa cập nhật");
+                map.put("email", kh.getEmail() != null ? kh.getEmail() : "Chưa cập nhật");
+            } else {
+                map.put("tenKhach", "Khách vãng lai");
+                map.put("soDienThoai", "-");
+                map.put("email", "-");
+            }
+            responseList.add(map);
+        }
+        return responseList;
+    }
+
+    @PostMapping("/api/cancel-booking")
+    @ResponseBody
+    public ResponseEntity<?> cancelBooking(@RequestParam("maSan") Long maSan) {
+        SanBong san = sanBongRepo.findById(maSan).orElse(null);
+
+        if (san != null && san.getTrangThai().equals("Đặt Trước")) {
+            // 1. Trả sân về trạng thái Trống
+            san.setTrangThai("Trống");
+            sanBongRepo.save(san);
+
+            // 2. Tìm hóa đơn đang đặt trước và chuyển thành Đã Hủy
+            hoaDonRepo.findAll().stream()
+                    .filter(h -> h.getSanBong().getMaSan().equals(maSan) && h.getTrangThai().equals("Đặt Trước"))
+                    .findFirst()
+                    .ifPresent(hd -> {
+                        hd.setTrangThai("Đã Hủy"); // Giữ lại lịch sử bị "bom" sân
+                        hoaDonRepo.save(hd);
+                    });
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "Đã hủy lịch đặt sân!"));
+        }
+        return ResponseEntity.ok(Map.of("success", false, "message", "Không thể hủy sân này!"));
     }
 
     // Lưu ý: Các API như StartSession, EndSession, Transfer bạn sẽ cần viết thêm

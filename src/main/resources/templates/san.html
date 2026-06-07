@@ -149,8 +149,36 @@
             </div>
         </div>
 
+    <div class="modal fade" id="bookingDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning text-dark py-2">
+                    <h6 class="modal-title fw-bold mb-0"><i class="fas fa-user-circle me-2"></i>Thông tin người đặt</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Họ và tên:</small>
+                        <strong id="viewTenKhach" class="text-dark"></strong>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Số điện thoại:</small>
+                        <strong id="viewSoDienThoai" class="text-dark"></strong>
+                    </div>
+                    <div class="mb-0">
+                        <small class="text-muted d-block">Email:</small>
+                        <strong id="viewEmail" class="text-dark text-break"></strong>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-2">
+                    <button type="button" class="btn btn-sm btn-secondary w-100" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
-        .table-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px; transition: all 0.3s; background: #fff; }
+        .table-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; transition: all 0.3s; background: #fff; height: 100%; display: flex; flex-direction: column; }
         .table-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); transform: translateY(-2px); }
         .table-card.available { border-color: #10b981; background: #ecfdf5; }
         .table-card.occupied { border-color: #ef4444; background: #fef2f2; }
@@ -161,7 +189,8 @@
         .status-badge.available { background: #d1fae5; color: #065f46; }
         .status-badge.occupied { background: #fee2e2; color: #991b1b; }
         .status-badge.reserved { background: #fef3c7; color: #92400e; }
-        .session-info { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #ccc; }
+        .session-info { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #ccc; min-height: 70px; display: flex; flex-direction: column; justify-content: center; }
+        .card-buttons { margin-top: auto; } /* Bí quyết đẩy các nút bấm luôn luôn nằm sát đáy thẻ */
     </style>
 
 
@@ -196,9 +225,17 @@
 
                 let sessionHtml = '';
                 if (isOccupied) {
-                    sessionHtml = `<div class="session-info text-danger">Sân đang sử dụng</div>`;
+                    sessionHtml = `
+                        <div class="session-info text-danger small">
+                            Sân đang sử dụng<br>
+                            Sử dụng: <a href="javascript:void(0)" class="fw-bold text-danger text-decoration-none" onclick="showBookingDetail('${table.tenKhach}', '${table.soDienThoai}', '${table.email}')">${table.tenKhach} <i class="fas fa-search ms-1" style="font-size:10px;"></i></a>
+                        </div>`;
                 } else if (isReserved) {
-                    sessionHtml = `<div class="session-info text-warning">Khách đã đặt trước</div>`;
+                    sessionHtml = `
+                        <div class="session-info text-warning small">
+                            Khách đã đặt trước<br>
+                            Người đặt: <a href="javascript:void(0)" class="fw-bold text-warning text-decoration-none" onclick="showBookingDetail('${table.tenKhach}', '${table.soDienThoai}', '${table.email}')">${table.tenKhach} <i class="fas fa-search ms-1" style="font-size:10px;"></i></a>
+                        </div>`;
                 } else {
                     sessionHtml = `<div class="session-info text-success">Sân đang trống</div>`;
                 }
@@ -223,7 +260,12 @@
                     }
                 } else if (isReserved) {
                     if (isStaff) {
-                        buttonsHtml += `<button class="btn btn-warning w-100" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Khách tới (Bắt đầu)</button>`;
+                        // Thêm nút Hủy (Màu đỏ) nằm cạnh nút Bắt đầu
+                        buttonsHtml += `
+                            <div class="d-flex gap-2 w-100">
+                                <button class="btn btn-warning w-75" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Khách tới</button>
+                                <button class="btn btn-outline-danger w-25" onclick="cancelBooking(${table.maSan})" title="Khách bom sân (Hủy lịch)"><i class="fas fa-times"></i></button>
+                            </div>`;
                     } else {
                         buttonsHtml += `<button class="btn btn-secondary w-100" disabled>Sân đã được đặt</button>`;
                     }
@@ -236,7 +278,7 @@
                 }
 
                 const cardHtml = `
-                    <div class="col-md-6 col-lg-3">
+                    <div class="col-md-6 col-lg-3 mb-4">
                         <div class="table-card ${cardClass}">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="table-name">${table.tenSan}</div>
@@ -244,7 +286,9 @@
                             </div>
                             <div class="table-price">${new Intl.NumberFormat('vi-VN').format(table.gia)} đ/giờ</div>
                             ${sessionHtml}
-                            ${buttonsHtml}
+                            <div class="card-buttons">
+                                ${buttonsHtml}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -417,6 +461,25 @@
                 $.post('/san/api/delete', { maSan: id }, function(res) {
                     if(res.success) {
                         loadTables();
+                    } else {
+                        alert(res.message);
+                    }
+                });
+            }
+        }
+
+        function showBookingDetail(ten, sdt, email) {
+            $('#viewTenKhach').text(ten);
+            $('#viewSoDienThoai').text(sdt);
+            $('#viewEmail').text(email);
+            $('#bookingDetailModal').modal('show');
+        }
+
+        function cancelBooking(maSan) {
+            if(confirm('Khách không đến? Bạn muốn HỦY lịch đặt trước của sân này và mở lại cho khách khác thuê?')) {
+                $.post('/san/api/cancel-booking', { maSan: maSan }, function(res) {
+                    if(res.success) {
+                        loadTables(); // Load lại lưới để cập nhật sân thành Trống (màu xanh)
                     } else {
                         alert(res.message);
                     }
