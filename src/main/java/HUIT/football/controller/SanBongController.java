@@ -47,11 +47,42 @@ public class SanBongController {
     @PostMapping("/api/edit")
     @ResponseBody
     public ResponseEntity<?> editSan(@ModelAttribute SanBong sanBong) {
-        sanBongService.saveSan(sanBong);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Cập nhật sân thành công!");
-        return ResponseEntity.ok(response);
+        // 1. Tìm sân cũ dưới cơ sở dữ liệu lên để đối chiếu
+        SanBong existingSan = sanBongRepo.findById(sanBong.getMaSan()).orElse(null);
+
+        if (existingSan != null) {
+            existingSan.setTenSan(sanBong.getTenSan());
+            existingSan.setGia(sanBong.getGia());
+
+            String trangThaiCu = existingSan.getTrangThai();
+            String trangThaiMoi = sanBong.getTrangThai();
+
+            // LOGIC BẢO VỆ: Chỉ cho phép đổi qua lại giữa "Trống" và "Bảo Trì"
+            // Nếu trạng thái cũ hoặc mới liên quan đến Đang Chơi/Đặt Trước thì bỏ qua không cho sửa bậy
+            if ("Trống".equals(trangThaiCu) || "Bảo Trì".equals(trangThaiCu)) {
+                if ("Trống".equals(trangThaiMoi) || "Bảo Trì".equals(trangThaiMoi)) {
+                    existingSan.setTrangThai(trangThaiMoi);
+                }
+            }
+
+            sanBongRepo.save(existingSan);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Cập nhật sân thành công!"));
+        }
+        return ResponseEntity.ok(Map.of("success", false, "message", "Sân không tồn tại!"));
+    }
+    @PostMapping("/api/create")
+    @ResponseBody
+    public ResponseEntity<?> createSan(@ModelAttribute SanBong sanBong) {
+        try {
+            // Sân mới tạo mặc định luôn luôn ở trạng thái "Trống"
+            sanBong.setTrangThai("Trống");
+
+            sanBongRepo.save(sanBong);
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "Thêm sân mới thành công!"));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi khi thêm sân: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/api/delete")

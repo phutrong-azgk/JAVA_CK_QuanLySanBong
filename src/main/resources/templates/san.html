@@ -42,8 +42,7 @@
                             <label class="form-label">Trạng thái</label>
                             <select id="trangThai" name="trangThai" class="form-select">
                                 <option value="Trống">Trống</option>
-                                <option value="Đang Chơi">Đang Chơi</option>
-                                <option value="Đặt Trước">Đặt Trước</option>
+                                <option value="Bảo Trì">Bảo Trì</option>
                             </select>
                         </div>
                     </form>
@@ -191,6 +190,8 @@
         .status-badge.reserved { background: #fef3c7; color: #92400e; }
         .session-info { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed #ccc; min-height: 70px; display: flex; flex-direction: column; justify-content: center; }
         .card-buttons { margin-top: auto; } /* Bí quyết đẩy các nút bấm luôn luôn nằm sát đáy thẻ */
+        .table-card.maintenance { border-color: #6b7280; background: #f3f4f6; }
+        .status-badge.maintenance { background: #e5e7eb; color: #374151; }
     </style>
 
 
@@ -220,8 +221,9 @@
             tables.forEach(table => {
                 const isOccupied = (table.trangThai === 'Đang Chơi');
                 const isReserved = (table.trangThai === 'Đặt Trước');
-                const cardClass = isOccupied ? 'occupied' : (isReserved ? 'reserved' : 'available');
-                const statusText = isOccupied ? 'Đang có khách' : (isReserved ? 'Đã đặt chỗ' : 'Sân Trống');
+                const isMaintenance = (table.trangThai === 'Bảo Trì');
+                const cardClass = isOccupied ? 'occupied' : (isReserved ? 'reserved' : (isMaintenance ? 'maintenance' : 'available'));
+                const statusText = isOccupied ? 'Đang có khách' : (isReserved ? 'Đã đặt chỗ' : (isMaintenance ? 'Đang bảo trì' : 'Sân Trống'));
 
                 let sessionHtml = '';
                 if (isOccupied) {
@@ -236,7 +238,11 @@
                             Khách đã đặt trước<br>
                             Người đặt: <a href="javascript:void(0)" class="fw-bold text-warning text-decoration-none" onclick="showBookingDetail('${table.tenKhach}', '${table.soDienThoai}', '${table.email}')">${table.tenKhach} <i class="fas fa-search ms-1" style="font-size:10px;"></i></a>
                         </div>`;
-                } else {
+                }
+                else if (isMaintenance) {
+                    sessionHtml = `<div class="session-info text-secondary small">Sân đang được bảo dưỡng định kỳ.<br>Tạm thời ngừng đón khách.</div>`;
+                }
+                else {
                     sessionHtml = `<div class="session-info text-success">Sân đang trống</div>`;
                 }
 
@@ -255,7 +261,11 @@
                 if (table.trangThai === 'Trống') {
                     if (isStaff) {
                         buttonsHtml += `<button class="btn btn-success w-100" onclick="startSession(${table.maSan})"><i class="fas fa-play"></i> Bắt đầu</button>`;
-                    } else {
+                    }
+                    else if (isMaintenance) {
+                    buttonsHtml += `<button class="btn btn-secondary w-100" disabled><i class="fas fa-tools me-1"></i> Tạm dừng hoạt động</button>`;
+                    }
+                    else {
                         buttonsHtml += `<button class="btn btn-info text-white w-100" onclick="bookSession(${table.maSan})"><i class="fas fa-calendar-check"></i> Đặt Sân</button>`;
                     }
                 } else if (isReserved) {
@@ -429,6 +439,9 @@
             $('#modalTitle').text('Thêm sân mới');
             $('#tableForm')[0].reset();
             $('#maSan').val('');
+
+            // Sân mới tạo mặc định luôn luôn là Trống
+            $('#trangThai').val('Trống').css('pointer-events', 'none').css('background-color', '#e9ecef');
             $('#tableModal').modal('show');
         }
 
@@ -439,6 +452,14 @@
             $('#tenSan').val(table.tenSan);
             $('#gia').val(table.gia);
             $('#trangThai').val(table.trangThai);
+
+            // Nếu sân đang Trống hoặc đang Bảo Trì -> Cho phép Admin chuyển đổi qua lại
+            if (table.trangThai === 'Trống' || table.trangThai === 'Bảo Trì') {
+                $('#trangThai').css('pointer-events', 'auto').css('background-color', '#fff');
+            } else {
+                // Sân đang có khách đá hoặc đặt trước -> Khóa cứng lại bảo vệ luồng tiền
+                $('#trangThai').css('pointer-events', 'none').css('background-color', '#e9ecef');
+            }
             $('#tableModal').modal('show');
         }
 
