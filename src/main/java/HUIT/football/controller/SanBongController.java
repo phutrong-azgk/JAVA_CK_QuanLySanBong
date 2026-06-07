@@ -88,11 +88,15 @@ public class SanBongController {
     @PostMapping("/api/delete")
     @ResponseBody
     public ResponseEntity<?> deleteSan(@RequestParam("maSan") Long maSan) {
-        sanBongService.deleteSan(maSan);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Xóa sân thành công!");
-        return ResponseEntity.ok(response);
+        SanBong san = sanBongRepo.findById(maSan).orElse(null);
+        if (san != null) {
+            san.setDaXoa(true); // Thực hiện Xóa mềm (Đánh dấu là đã xóa)
+            san.setTrangThai("Ngừng hoạt động"); // Tùy chọn: Đổi thêm trạng thái cho chắc chắn
+            sanBongRepo.save(san); // Lưu lại thay đổi thay vì gọi lệnh xóa
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "Xóa sân thành công!"));
+        }
+        return ResponseEntity.ok(Map.of("success", false, "message", "Sân không tồn tại!"));
     }
 
 
@@ -246,7 +250,10 @@ public class SanBongController {
     @GetMapping("/api/get-all")
     @ResponseBody
     public List<Map<String, Object>> getAllSanAPI() {
-        List<SanBong> sans = sanBongService.getAllSan();
+        List<SanBong> sans = sanBongService.getAllSan().stream()
+                .filter(s -> s.getDaXoa() == null || !s.getDaXoa())
+                .collect(java.util.stream.Collectors.toList());
+
         List<Map<String, Object>> responseList = new java.util.ArrayList<>();
 
         for (SanBong s : sans) {

@@ -23,4 +23,7 @@ public class SanBong {
 
     @Column(name = "trang_thai", length = 20)
     private String trangThai; // Trống, Đang Chơi, Đặt Trước
+
+    @Column(name = "da_xoa")
+    private Boolean daXoa = false;
 }
