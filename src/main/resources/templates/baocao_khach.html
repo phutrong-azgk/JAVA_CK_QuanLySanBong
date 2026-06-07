@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<head>
+    <title>Báo cáo chi tiêu cá nhân</title>
+</head>
+<body>
+<section>
+    <div class="page-header mb-4">
+        <h2 class="page-title">
+            <i class="fas fa-wallet text-primary me-2"></i>Thống Kê Chi Tiêu & Lịch Sử
+        </h2>
+        <p class="text-muted">Xin chào <span id="lblTenKhach" class="fw-bold text-dark">...</span>, dưới đây là lịch sử sử dụng dịch vụ sân bóng của bạn.</p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border-0 bg-gradient text-black" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="mb-1 text-black-50 fw-medium">Tổng tích lũy chi tiêu</p>
+                            <h3 id="totalSpent" class="mb-0 fw-bold">0 đ</h3>
+                        </div>
+                        <div class="bg-black bg-opacity-25 rounded p-3">
+                            <i class="fas fa-hand-holding-usd fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="card-title mb-0 text-dark fw-bold">
+                <i class="fas fa-history me-2 text-secondary"></i>Lịch sử hóa đơn đã thanh toán
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary">
+                    <tr>
+                        <th class="ps-4">Mã HĐ</th>
+                        <th>Thời gian chốt</th>
+                        <th>Sân bóng</th>
+                        <th>Tiền sân</th>
+                        <th>Dịch vụ</th>
+                        <th>Khuyến mãi</th>
+                        <th class="text-end pe-4">Thành tiền</th>
+                    </tr>
+                    </thead>
+                    <tbody id="billTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        $(document).ready(function () {
+            loadCustomerReport();
+        });
+
+        function loadCustomerReport() {
+            $.get('/profile/api/baocao', function (data) {
+                // Hiển thị tên và tổng tiền
+                $('#lblTenKhach').text(data.tenKhach);
+                $('#totalSpent').text(formatCurrency(data.totalSpent));
+
+                // Đổ dữ liệu vào bảng
+                const tbody = $('#billTableBody');
+                tbody.empty();
+
+                if (!data.bills || data.bills.length === 0) {
+                    tbody.html('<tr><td colspan="7" class="text-center py-4 text-muted">Bạn chưa có lịch sử giao dịch nào trên hệ thống.</td></tr>');
+                    return;
+                }
+
+                data.bills.forEach(bill => {
+                    const row = `
+                        <tr>
+                            <td class="ps-4 fw-bold text-primary">#${bill.maHd}</td>
+                            <td>${bill.thoiGian}</td>
+                            <td class="fw-bold text-dark">${bill.tenSan}</td>
+                            <td>${formatCurrency(bill.tienSan)}</td>
+                            <td>${formatCurrency(bill.tienDichVu)}</td>
+                            <td class="text-danger">-${formatCurrency(bill.tienGiamGia)}</td>
+                            <td class="text-end pe-4 fw-bold text-success">${formatCurrency(bill.tongTien)}</td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            });
+        }
+
+        function formatCurrency(amount) {
+            if (!amount) return '0 đ';
+            return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+        }
+    </script>
+</section>
+</body>
+</html>

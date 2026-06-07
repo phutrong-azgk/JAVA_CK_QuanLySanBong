@@ -1,6 +1,7 @@
 package HUIT.football.repository;
 
 import HUIT.football.model.HoaDon;
+import HUIT.football.model.KhachHang;
 import HUIT.football.model.SanBong;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +18,5 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, Long> {
     @Query("SELECT h FROM HoaDon h WHERE h.trangThai = 'Đã Thanh Toán' AND h.thoiGianKetThuc >= :start AND h.thoiGianKetThuc <= :end")
     List<HoaDon> findDoanhThuByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
+    List<HoaDon> findByKhachHangAndTrangThai(KhachHang khachHang, String trangThai);
 }

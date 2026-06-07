@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,6 +24,9 @@ public class ProfileController {
     @Autowired private UserRepository userRepository;
     @Autowired private KhachHangRepository khachHangRepo;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired
+    private HUIT.football.repository.HoaDonRepository hoaDonRepo;
+
 
     @GetMapping
     public String profilePage(Model model, Principal principal) {
@@ -91,6 +95,56 @@ public class ProfileController {
 
         response.put("success", true);
         response.put("message", "Cập nhật hồ sơ thành công!");
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/baocao")
+    public String customerReportPage() {
+        return "baocao_khach"; // Sẽ trỏ tới file baocao_khach.html
+    }
+
+    // 2. API trả về tổng chi tiêu và danh sách hóa đơn của khách đang đăng nhập
+    @GetMapping("/api/baocao")
+    @ResponseBody
+    public ResponseEntity<?> getCustomerReport(java.security.Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body("Chưa đăng nhập");
+        }
+
+        String username = principal.getName();
+
+        // Tìm hồ sơ khách hàng dựa trên tên tài khoản đăng nhập
+        HUIT.football.model.KhachHang kh = khachHangRepo.findByTaiKhoan(username).orElse(null);
+        if (kh == null) {
+            return ResponseEntity.ok(Map.of("totalSpent", 0.0, "bills", List.of()));
+        }
+
+        // Lấy toàn bộ hóa đơn Đã Thanh Toán của riêng khách hàng này
+        List<HUIT.football.model.HoaDon> hoaDons = hoaDonRepo.findByKhachHangAndTrangThai(kh, "Đã Thanh Toán");
+
+        List<Map<String, Object>> billList = new java.util.ArrayList<>();
+        double calcTotalSpent = 0.0;
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+        for (HUIT.football.model.HoaDon hd : hoaDons) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("maHd", hd.getMaHD()); // Khớp chính xác với biến maHD trong HoaDon.java
+            map.put("thoiGian", hd.getThoiGianKetThuc() != null ? hd.getThoiGianKetThuc().format(formatter) : "");
+            map.put("tenSan", hd.getSanBong() != null ? hd.getSanBong().getTenSan() : "Sân đã xóa");
+            map.put("tienSan", hd.getTienSan());
+            map.put("tienDichVu", hd.getTienDichVu());
+            map.put("tienGiamGia", hd.getTienGiamGia());
+            map.put("tongTien", hd.getTongTien());
+
+            calcTotalSpent += (hd.getTongTien() != null) ? hd.getTongTien() : 0.0;
+            billList.add(map);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("tenKhach", kh.getTenKhach());
+        response.put("totalSpent", calcTotalSpent); // Số tiền tính thực tế dựa trên danh sách hóa đơn
+        response.put("bills", billList);
+
         return ResponseEntity.ok(response);
     }
 }
