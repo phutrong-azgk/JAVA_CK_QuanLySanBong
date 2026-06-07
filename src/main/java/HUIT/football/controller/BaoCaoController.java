@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -85,5 +86,33 @@ public class BaoCaoController {
 
         return response;
 
+    }
+
+    // API CUNG CẤP DỮ LIỆU CHO BẢNG DATATABLES
+    @GetMapping("/api/hoadon")
+    @ResponseBody
+    @Transactional
+    public List<Map<String, Object>> getAllHoaDon() {
+        List<HoaDon> list = hoaDonRepo.findAll();
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+        for (HoaDon hd : list) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("maHD", hd.getMaHD());
+            map.put("tenSan", hd.getSanBong() != null ? hd.getSanBong().getTenSan() : "Sân đã xóa");
+            map.put("tenKhach", hd.getKhachHang() != null ? hd.getKhachHang().getTenKhach() : "Khách vãng lai");
+
+            map.put("thoiGian", hd.getThoiGianKetThuc() != null ? hd.getThoiGianKetThuc().format(fmt) : "Chưa chốt");
+            // Thời gian thô để DataTables sắp xếp cho chuẩn
+            map.put("thoiGianRaw", hd.getThoiGianKetThuc() != null ? hd.getThoiGianKetThuc().toString() : "");
+
+            map.put("tongTien", hd.getTongTien() != null ? hd.getTongTien() : 0.0);
+            map.put("trangThai", hd.getTrangThai());
+            map.put("hinhThuc", hd.getHinhThucThanhToan() != null ? hd.getHinhThucThanhToan() : "-");
+
+            result.add(map);
+        }
+        return result;
     }
 }
