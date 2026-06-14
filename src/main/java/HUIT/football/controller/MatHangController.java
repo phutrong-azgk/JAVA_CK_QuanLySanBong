@@ -60,6 +60,11 @@ public class MatHangController {
     @PostMapping("/api/create")
     @ResponseBody
     public ResponseEntity<?> createItem(@ModelAttribute MatHang matHang) {
+        if ((matHang.getDonGia() != null && matHang.getDonGia() < 0) || 
+            (matHang.getSoLuongTon() != null && matHang.getSoLuongTon() < 0)) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Đơn giá và số lượng không được âm!"));
+        }
+
         // Gán loại hàng mặc định nếu chưa chọn
         if(matHang.getLoaiHang() == null || matHang.getLoaiHang().isEmpty()) {
             matHang.setLoaiHang("Dịch vụ");
@@ -76,6 +81,11 @@ public class MatHangController {
     @PostMapping("/api/edit")
     @ResponseBody
     public ResponseEntity<?> editItem(@ModelAttribute MatHang matHang) {
+        if ((matHang.getDonGia() != null && matHang.getDonGia() < 0) || 
+            (matHang.getSoLuongTon() != null && matHang.getSoLuongTon() < 0)) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Đơn giá và số lượng không được âm!"));
+        }
+
         // Hàm save của JPA nếu truyền vào object có ID đã tồn tại thì nó tự hiểu là Update
         matHangService.save(matHang);
 

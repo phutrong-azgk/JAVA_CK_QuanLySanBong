@@ -47,6 +47,10 @@ public class SanBongController {
     @PostMapping("/api/edit")
     @ResponseBody
     public ResponseEntity<?> editSan(@ModelAttribute SanBong sanBong) {
+        if (sanBong.getGia() != null && sanBong.getGia() < 0) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Giá sân không được để số âm!"));
+        }
+
         // 1. Tìm sân cũ dưới cơ sở dữ liệu lên để đối chiếu
         SanBong existingSan = sanBongRepo.findById(sanBong.getMaSan()).orElse(null);
 
@@ -73,6 +77,10 @@ public class SanBongController {
     @PostMapping("/api/create")
     @ResponseBody
     public ResponseEntity<?> createSan(@ModelAttribute SanBong sanBong) {
+        if (sanBong.getGia() != null && sanBong.getGia() < 0) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Giá sân không được để số âm!"));
+        }
+        
         try {
             // Sân mới tạo mặc định luôn luôn ở trạng thái "Trống"
             sanBong.setTrangThai("Trống");
