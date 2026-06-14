@@ -45,6 +45,7 @@
                     <thead class="bg-light">
                     <tr>
                         <th class="ps-3">Mã hàng</th>
+                        <th>Ảnh</th>
                         <th>Tên hàng</th>
                         <th>Loại hàng</th>
                         <th>Đơn giá</th>
@@ -79,6 +80,13 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Tên hàng <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="tenMon" name="tenMon" required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Hình ảnh minh họa</label>
+                            <input type="file" class="form-control" id="imageFile" name="imageFile" accept="image/*"/>
+                            <div id="imagePreviewContainer" class="mt-2 d-none">
+                                <img id="imagePreview" src="" style="max-height: 80px; border-radius: 4px; border: 1px solid #ddd; padding: 2px;">
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Đơn giá (VNĐ) <span class="text-danger">*</span></label>
@@ -209,9 +217,11 @@
                     actionsHtml = '<span class="text-muted"><i class="fas fa-lock me-1"></i>Chỉ xem</span>';
                 }
 
+                const imgSrc = item.anh ? item.anh : 'https://via.placeholder.com/50?text=No+Image';
                 const row = `
                     <tr>
                         <td class="ps-3 fw-bold text-secondary">${item.maMon}</td>
+                        <td><img src="${imgSrc}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e7eb;"></td>
                         <td class="fw-bold">${item.tenMon}</td>
                         <td><span class="badge bg-secondary">${item.loaiHang || 'Khác'}</span></td> <td class="text-primary fw-bold">${formatCurrency(item.donGia)}</td>
                         <td class="fs-5">${item.soLuongTon}</td>
@@ -235,6 +245,7 @@
             editingItem = null;
             $('#modalTitle').text('Thêm hàng hóa mới');
             $('#itemForm')[0].reset();
+            $('#imagePreviewContainer').addClass('d-none');
 
             // Mở khóa ô nhập Mã hàng khi tạo mới
             $('#maMon').prop('readonly', false);
@@ -252,26 +263,50 @@
             $('#tenMon').val(item.tenMon);
             $('#donGia').val(item.donGia);
             $('#soLuongTon').val(item.soLuongTon);
+            $('#loaiHang').val(item.loaiHang || 'Đồ uống');
+
+            // Xử lý ảnh cũ
+            if (item.anh) {
+                $('#imagePreview').attr('src', item.anh);
+                $('#imagePreviewContainer').removeClass('d-none');
+            } else {
+                $('#imagePreviewContainer').addClass('d-none');
+            }
+            $('#imageFile').val(''); // Reset input file để không giữ rác
 
             // Khóa cứng ô Mã hàng, không cho sửa khi Update
             $('#maMon').prop('readonly', true);
 
             $('#itemModal').modal('show');
-            $('#loaiHang').val(item.loaiHang || 'Đồ uống');
         }
 
         function saveItem() {
-            const data = $('#itemForm').serialize();
+            const form = document.getElementById('itemForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const formData = new FormData(form);
             const url = editingItem ? '/kho/api/edit' : '/kho/api/create';
 
-            $.post(url, data, function (response) {
-                if (response.success) {
-                    $('#itemModal').modal('hide');
-                    loadItems();
-                    // Chú ý: Dữ liệu thực tế sẽ không thay đổi vì chúng ta đang dùng dữ liệu Mock cứng trong Java
-                    alert(response.message);
-                } else {
-                    alert(response.message);
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    if (response.success) {
+                        $('#itemModal').modal('hide');
+                        loadItems();
+                        alert(response.message);
+                    } else {
+                        alert(response.message);
+                    }
+                },
+                error: function() {
+                    alert("Có lỗi xảy ra khi lưu dữ liệu!");
                 }
             });
         }

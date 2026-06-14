@@ -25,4 +25,7 @@ public class MatHang {
 
     @Column(name = "loai_hang", length = 20)
     private String loaiHang; // Đồ ăn, Đồ uống, Thuê đồ
+
+    @Column(name = "anh", length = 255)
+    private String anh; // Đường dẫn ảnh
 }

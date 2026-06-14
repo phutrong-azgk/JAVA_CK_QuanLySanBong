@@ -12,6 +12,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.web.multipart.MultipartFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+import java.io.File;
+
 @Controller
 @RequestMapping("/kho")
 public class MatHangController {
@@ -23,6 +31,24 @@ public class MatHangController {
     @GetMapping
     public String khoPage() {
         return "kho";
+    }
+
+    private String saveImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) return null;
+        try {
+            // Lưu ảnh vào thư mục tĩnh của project
+            String uploadDir = "src/main/resources/static/uploads/";
+            File dir = new File(uploadDir);
+            if (!dir.exists()) dir.mkdirs();
+
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            Path path = Paths.get(uploadDir + fileName);
+            Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+            return "/uploads/" + fileName;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     // ==========================================
@@ -42,6 +68,7 @@ public class MatHangController {
             map.put("donGia", item.getDonGia());
             map.put("soLuongTon", item.getSoLuongTon());
             map.put("loaiHang", item.getLoaiHang());
+            map.put("anh", item.getAnh());
 
             // Xử lý logic trạng thái để frontend lên màu
             String status = "Còn hàng";
@@ -59,7 +86,8 @@ public class MatHangController {
 
     @PostMapping("/api/create")
     @ResponseBody
-    public ResponseEntity<?> createItem(@ModelAttribute MatHang matHang) {
+    public ResponseEntity<?> createItem(@ModelAttribute MatHang matHang,
+                                        @RequestParam(value = "imageFile", required = false) MultipartFile imageFile) {
         if ((matHang.getDonGia() != null && matHang.getDonGia() < 0) || 
             (matHang.getSoLuongTon() != null && matHang.getSoLuongTon() < 0)) {
             return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Đơn giá và số lượng không được âm!"));
@@ -67,6 +95,10 @@ public class MatHangController {
 
         if(matHang.getLoaiHang() == null || matHang.getLoaiHang().isEmpty()) {
             matHang.setLoaiHang("Dịch vụ");
+        }
+
+        if (imageFile != null && !imageFile.isEmpty()) {
+            matHang.setAnh(saveImage(imageFile));
         }
 
         matHangService.save(matHang);
@@ -79,10 +111,21 @@ public class MatHangController {
 
     @PostMapping("/api/edit")
     @ResponseBody
-    public ResponseEntity<?> editItem(@ModelAttribute MatHang matHang) {
+    public ResponseEntity<?> editItem(@ModelAttribute MatHang matHang,
+                                      @RequestParam(value = "imageFile", required = false) MultipartFile imageFile) {
         if ((matHang.getDonGia() != null && matHang.getDonGia() < 0) || 
             (matHang.getSoLuongTon() != null && matHang.getSoLuongTon() < 0)) {
             return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Đơn giá và số lượng không được âm!"));
+        }
+
+        MatHang existing = matHangService.getAll().stream()
+                            .filter(m -> m.getMaMon().equals(matHang.getMaMon()))
+                            .findFirst().orElse(null);
+                            
+        if (existing != null && (imageFile == null || imageFile.isEmpty())) {
+            matHang.setAnh(existing.getAnh());
+        } else if (imageFile != null && !imageFile.isEmpty()) {
+            matHang.setAnh(saveImage(imageFile));
         }
 
         // Hàm save của JPA nếu truyền vào object có ID đã tồn tại thì nó tự hiểu là Update

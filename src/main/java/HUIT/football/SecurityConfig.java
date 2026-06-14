@@ -24,7 +24,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/register", "/css/**", "/js/**", "/error").permitAll()
+                        .requestMatchers("/login", "/register", "/css/**", "/js/**", "/error", "/uploads/**").permitAll()
 
                         // 1. MỞ KHÓA TRANG SÂN: Cả ADMIN, NHÂN VIÊN và KHÁCH đều vào được
                         .requestMatchers("/san/**").hasAnyRole("ADMIN", "NHAN_VIEN", "KHACH")
