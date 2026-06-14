@@ -98,9 +98,35 @@
 
         $(document).ready(function () {
             const today = new Date();
+            // Lấy UTC time offset để toISOString() không bị lùi 1 ngày do múi giờ
+            today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+            
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            $('#startDate').val(firstDay.toISOString().split('T')[0]);
-            $('#endDate').val(today.toISOString().split('T')[0]);
+            firstDay.setMinutes(firstDay.getMinutes() - firstDay.getTimezoneOffset());
+
+            const todayStr = today.toISOString().split('T')[0];
+            const firstDayStr = firstDay.toISOString().split('T')[0];
+            
+            $('#startDate').val(firstDayStr);
+            $('#endDate').val(todayStr);
+
+            // Ràng buộc không được chọn ngày tương lai
+            $('#startDate').attr('max', todayStr);
+            $('#endDate').attr('max', todayStr);
+            
+            // Ràng buộc Từ ngày <= Đến ngày (gán giá trị khởi tạo)
+            $('#endDate').attr('min', firstDayStr);
+
+            // Cập nhật ràng buộc khi người dùng thay đổi ngày
+            $('#startDate').on('change', function() {
+                $('#endDate').attr('min', $(this).val());
+            });
+            
+            $('#endDate').on('change', function() {
+                const selectedEndDate = $(this).val();
+                $('#startDate').attr('max', selectedEndDate ? selectedEndDate : todayStr);
+            });
+
             loadRevenue();
 
             $('#invoiceTable').DataTable({

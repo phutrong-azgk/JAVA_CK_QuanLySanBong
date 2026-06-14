@@ -65,7 +65,6 @@ public class MatHangController {
             return ResponseEntity.ok(Map.of("success", false, "message", "Lỗi: Đơn giá và số lượng không được âm!"));
         }
 
-        // Gán loại hàng mặc định nếu chưa chọn
         if(matHang.getLoaiHang() == null || matHang.getLoaiHang().isEmpty()) {
             matHang.setLoaiHang("Dịch vụ");
         }
