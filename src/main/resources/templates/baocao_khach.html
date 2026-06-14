@@ -96,7 +96,7 @@
 
         function formatCurrency(amount) {
             if (!amount) return '0 đ';
-            return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+            return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.round(amount)) + ' đ';
         }
     </script>
 </section>

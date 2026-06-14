@@ -294,7 +294,7 @@
                                 <div class="table-name">${table.tenSan}</div>
                                 <span class="status-badge ${cardClass}">${statusText}</span>
                             </div>
-                            <div class="table-price">${new Intl.NumberFormat('vi-VN').format(table.gia)} đ/giờ</div>
+                            <div class="table-price">${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.round(table.gia))} đ/giờ</div>
                             ${sessionHtml}
                             <div class="card-buttons">
                                 ${buttonsHtml}

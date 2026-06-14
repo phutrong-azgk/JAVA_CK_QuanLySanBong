@@ -113,7 +113,7 @@
             // 2. Nạp dữ liệu
             if(customers && customers.length > 0) {
                 customers.forEach(cust => {
-                    const tongChi = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(cust.tongChi || 0);
+                    const tongChi = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Math.round(cust.tongChi || 0));
                     const contactInfo = `
                         <div><i class="fas fa-phone text-muted me-1" style="font-size: 12px;"></i> ${cust.soDienThoai || '<span class="text-muted">Trống</span>'}</div>
                         <div style="font-size: 12px;"><i class="fas fa-envelope text-muted me-1"></i> ${cust.email || '<span class="text-muted">Trống</span>'}</div>
