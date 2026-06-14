@@ -5,6 +5,11 @@
 </head>
 <body>
 <section>
+    <style>
+        #bangKhachHang_wrapper .row:first-child {
+            margin-bottom: 1rem !important;
+        }
+    </style>
     <div class="page-header mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <h2 class="page-title"><i class="fas fa-users me-2"></i>Quản lý Khách Hàng</h2>
@@ -15,25 +20,23 @@
     </div>
 
     <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-secondary">
-                    <tr>
-                        <th class="ps-4">Mã KH</th>
-                        <th>Tên Khách Hàng</th>
-                        <th>Liên Hệ</th>
-                        <th>Tài Khoản Liên Kết</th>
-                        <th>Số Lần</th>
-                        <th>Tổng Chi Tiêu</th>
-                        <th class="text-end pe-4">Thao Tác</th>
-                    </tr>
-                    </thead>
-                    <tbody id="customersTableBody">
-                    <tr><td colspan="7" class="text-center py-4">Đang tải dữ liệu...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="card-body p-4"> <div class="table-responsive pt-2">
+            <table id="bangKhachHang" class="table table-hover align-middle mb-0 mt-3 border-top">
+                <thead class="bg-light text-secondary">
+                <tr>
+                    <th class="ps-4">Mã KH</th>
+                    <th>Tên Khách Hàng</th>
+                    <th>Liên Hệ</th>
+                    <th>Tài Khoản Liên Kết</th>
+                    <th>Số Lần</th>
+                    <th>Tổng Chi Tiêu</th>
+                    <th class="text-end pe-4">Thao Tác</th>
+                </tr>
+                </thead>
+                <tbody id="customersTableBody">
+                </tbody>
+            </table>
+        </div>
         </div>
     </div>
 
@@ -78,6 +81,10 @@
         </div>
     </div>
 
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
     <script th:inline="javascript">
         let customers = [];
         let editingCustomer = null;
@@ -95,40 +102,60 @@
 
         function renderCustomers() {
             const tbody = $('#customersTableBody');
-            tbody.empty();
 
-            if(customers.length === 0) {
-                tbody.html('<tr><td colspan="7" class="text-center py-4 text-muted">Chưa có dữ liệu khách hàng.</td></tr>');
-                return;
+            // 1. Hủy DataTables cũ nếu có
+            if ($.fn.DataTable && $.fn.DataTable.isDataTable('#bangKhachHang')) {
+                $('#bangKhachHang').DataTable().destroy();
             }
 
-            customers.forEach(cust => {
-                const tongChi = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(cust.tongChi || 0);
-                const contactInfo = `
-                    <div><i class="fas fa-phone text-muted me-1" style="font-size: 12px;"></i> ${cust.soDienThoai || '<span class="text-muted">Trống</span>'}</div>
-                    <div style="font-size: 12px;"><i class="fas fa-envelope text-muted me-1"></i> ${cust.email || '<span class="text-muted">Trống</span>'}</div>
-                `;
-                const taiKhoanInfo = cust.taiKhoan ? `<span class="badge bg-info text-dark border"><i class="fas fa-user me-1"></i>${cust.taiKhoan}</span>` : '<span class="text-muted">Khách lẻ</span>';
+            tbody.empty();
 
-                const row = `
-                    <tr>
-                        <td class="ps-4 text-muted fw-bold">#${cust.maKhach}</td>
-                        <td class="fw-bold text-dark">${cust.tenKhach}</td>
-                        <td>${contactInfo}</td>
-                        <td>${taiKhoanInfo}</td>
-                        <td><span class="badge bg-secondary rounded-pill px-2">${cust.soHoaDon || 0}</span></td>
-                        <td class="text-success fw-bold">${tongChi}</td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-warning me-1" onclick='editCustomer(${JSON.stringify(cust)})' title="Sửa">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer(${cust.maKhach})" title="Xóa">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tbody.append(row);
+            // 2. Nạp dữ liệu
+            if(customers && customers.length > 0) {
+                customers.forEach(cust => {
+                    const tongChi = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(cust.tongChi || 0);
+                    const contactInfo = `
+                        <div><i class="fas fa-phone text-muted me-1" style="font-size: 12px;"></i> ${cust.soDienThoai || '<span class="text-muted">Trống</span>'}</div>
+                        <div style="font-size: 12px;"><i class="fas fa-envelope text-muted me-1"></i> ${cust.email || '<span class="text-muted">Trống</span>'}</div>
+                    `;
+                    const taiKhoanInfo = cust.taiKhoan ? `<span class="badge bg-info text-dark border"><i class="fas fa-user me-1"></i>${cust.taiKhoan}</span>` : '<span class="text-muted">Khách lẻ</span>';
+
+                    const row = `
+                        <tr>
+                            <td class="ps-4 text-muted fw-bold">#${cust.maKhach}</td>
+                            <td class="fw-bold text-dark">${cust.tenKhach}</td>
+                            <td>${contactInfo}</td>
+                            <td>${taiKhoanInfo}</td>
+                            <td><span class="badge bg-secondary rounded-pill px-2">${cust.soHoaDon || 0}</span></td>
+                            <td class="text-success fw-bold">${tongChi}</td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-warning me-1" onclick='editCustomer(${JSON.stringify(cust)})' title="Sửa">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer(${cust.maKhach})" title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+            }
+
+            // 3. Khởi tạo DataTables
+            $('#bangKhachHang').DataTable({
+                "language": {
+                    "emptyTable": "Chưa có dữ liệu khách hàng.",
+                    "search": "Tìm kiếm khách hàng (Tên, SĐT, Email):",
+                    "lengthMenu": "Hiển thị _MENU_ dòng",
+                    "infoEmpty": "Không có dữ liệu",
+                    "zeroRecords": "Không tìm thấy kết quả nào phù hợp",
+                    "paginate": { "previous": "Trước", "next": "Sau" }
+                },
+                "order": [], // Không tự động sắp xếp
+                "columnDefs": [
+                    { "orderable": false, "targets": [2, 6] } // Tắt sắp xếp ở cột "Liên Hệ" và "Thao Tác"
+                ]
             });
         }
 
